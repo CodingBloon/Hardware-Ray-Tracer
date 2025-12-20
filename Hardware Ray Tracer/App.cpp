@@ -1,5 +1,6 @@
 #include "App.h"
 #include <ctime>
+#include "RTApp.h"
 
 /*
  * Der Hardware Ray Tracer nutzt die dedizierte Ray-Tracing-Hardware moderner Grafikkarten. 
@@ -33,7 +34,7 @@ Core::App::App() : window({800, 600, "Ray Tracing :)"}), device(&window), swapCh
 	createRayTracingDescriptorSets();
 	std::cout << "Creating Ray Tracing Pipeline 2 of 4 Steps completed! Creating Ray Tracing Pipleine Layout..." << std::endl;
 	createRayTracingPipelineLayout();
-	std::cout << "Creating Ray Tracing Pipeline 3 of 4 Steps completed! Starting Ray Tracing Pipeline..." << std::endl;
+	std::cout << "Creating Ray Tracing Pipeline 3 of 4 Steps completed! Creating Ray Tracing Pipeline..." << std::endl;
 	createRayTracingPipeline();
 	std::cout << "Creating Ray Tracing Pipeline 4 of 4 Steps completed!" << std::endl;
 	std::cout << "Ray Tracing Pipeline created!" << std::endl;
@@ -81,7 +82,7 @@ void Core::App::run() {
 
 // -------------------- RAY TRACING PIPELINE CREATION --------------------
 
-void Core::App::createRayTracingPipelineLayout() {
+/*void Core::App::createRayTracingPipelineLayout() {
 
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -281,11 +282,11 @@ void Core::App::createShaderBindingTable(const VkRayTracingPipelineCreateInfoKHR
 	callableRegion.deviceAddress = 0;
 	callableRegion.size = 0;
 	callableRegion.stride = 0;
-}
+}*/
 
 // -------------------- ACCELERATION STRUCTURE CREATION --------------------
 
-void Core::App::primitiveToGeometry(const Mesh& mesh, VkAccelerationStructureGeometryKHR& geometry, VkAccelerationStructureBuildRangeInfoKHR& rangeInfo) {
+/*void Core::App::primitiveToGeometry(const Mesh& mesh, VkAccelerationStructureGeometryKHR& geometry, VkAccelerationStructureBuildRangeInfoKHR& rangeInfo) {
 	const auto triangeCount = static_cast<uint32_t>(mesh.indices.size() / 3U);
 
 	VkAccelerationStructureGeometryTrianglesDataKHR triangles{
@@ -466,9 +467,9 @@ void Core::App::createAccelerationStructure(VkAccelerationStructureTypeKHR asTyp
 	device.endSingleTimeCommands(cmd);
 
 	//The scratch buffer will be deleted automatically
-}
+}*/
 
-void Core::App::createUniformBuffers() {
+/*void Core::App::createUniformBuffers() {
 	for (uint32_t i = 0; i < uniformBuffers.size(); i++) {
 		uniformBuffers[i] = std::make_unique<Buffer>(
 			device,
@@ -479,10 +480,10 @@ void Core::App::createUniformBuffers() {
 
 		uniformBuffers[i]->map();
 	}
-}
+}*/
 
 //-------------------- INPUT SHADER --------------------
-void Core::App::readShader(std::string file, VkShaderModule* module) {
+/*void Core::App::readShader(std::string file, VkShaderModule* module) {
 	std::vector<char> code = readShaderFile(file);
 
 	createShaderModule(code, module);
@@ -509,7 +510,7 @@ void Core::App::createShaderModule(const std::vector<char>& code, VkShaderModule
 	info.pCode = reinterpret_cast<const uint32_t*>(code.data());
 
 	VK_CHECK_RESULT(vkCreateShaderModule(device.getDevice(), &info, nullptr, module), "failed to create Shader module");
-}
+}*/
 
 void Core::App::createCommandBuffers() {
 	commandBuffers.resize(SwapChain::MAX_FRAMES_IN_FLIGHT);
@@ -572,19 +573,23 @@ VkCommandBuffer Core::App::beginFrame() {
 void Core::App::endFrame() {
 	assert(frameStarted && "Can't call endFrame while frame is not in progress");
 
+	//end command buffer
 	auto commandBuffer = commandBuffers[currentFrameIndex];
 	VK_CHECK_RESULT(vkEndCommandBuffer(commandBuffer), "failed to record buffer!");
 
+	//submit command buffers
 	auto result = swapChain->submitCommandBuffers(&commandBuffer, &currentImageIndex);
+	//check results of the rendering and recreate the swap chain if the window has changed it's size
 	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
 		recreateSwapChain();
-	}
-	else VK_CHECK_RESULT(result, "failed to present swap chain image");
+	} else VK_CHECK_RESULT(result, "failed to present swap chain image");
 
+	//reset frameStarted and updated frame index
 	frameStarted = false;
 	currentFrameIndex = (currentFrameIndex + 1) % SwapChain::MAX_FRAMES_IN_FLIGHT;
 }
 
+//Unused in the ray tracing rendering pipeline
 void Core::App::beginRenderPass(VkCommandBuffer buffer) {
 	assert(frameStarted && "Can't call beginRenderPass while frame is not in progress");
 	assert(buffer == commandBuffers[currentFrameIndex] && "Can't begin render pass on command buffer from a different frame");
@@ -620,6 +625,7 @@ void Core::App::beginRenderPass(VkCommandBuffer buffer) {
 	vkCmdSetScissor(buffer, 0, 1, &scissor);
 }
 
+//unused in the ray tracing pipeline
 void Core::App::endRenderPass(VkCommandBuffer buffer) {
 	assert(frameStarted && "Can't call beginRenderPass while frame is not in progress");
 	assert(buffer == commandBuffers[currentFrameIndex] && "Can't begin render pass on command buffer from a different frame");
@@ -662,6 +668,7 @@ void Core::App::copyImageToSwapChain(VkCommandBuffer buffer, VkImage swapChainIm
 		vkCmdPipelineBarrier(buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, VK_NULL_HANDLE, 0, VK_NULL_HANDLE, 1, &dstBarrier);
 	}
 
+	//copy storage image to swap chain
 	VkImageCopy region{
 		.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
 			.srcOffset = {0, 0, 0},
@@ -687,6 +694,7 @@ void Core::App::copyImageToSwapChain(VkCommandBuffer buffer, VkImage swapChainIm
 	}
 
 	{
+		//transition storage image
 		VkImageMemoryBarrier srcBarrier{
 			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
 			.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
@@ -701,49 +709,43 @@ void Core::App::copyImageToSwapChain(VkCommandBuffer buffer, VkImage swapChainIm
 	}
 }
 
-void Core::App::setImageLayout(VkCommandBuffer buffer, VkImage image, VkImageLayout layout, VkImageLayout l) {
-}
-
 void Core::App::rayTraceScene() {
+	//start recording of the command buffer
 	if (auto buffer = beginFrame()) {
 		vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, graphicsPipeline);
 
-		VkImageMemoryBarrier toGeneral{
-			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-			.srcAccessMask = 0,
-			.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
-			.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-			.newLayout = VK_IMAGE_LAYOUT_GENERAL,
-			.image = storageImage.image,
-			.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
-		};
+		{
+			//Convert storage image to general layout
+			VkImageMemoryBarrier toGeneral{
+				.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+				.srcAccessMask = 0,
+				.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
+				.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+				.newLayout = VK_IMAGE_LAYOUT_GENERAL,
+				.image = storageImage.image,
+				.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
+			};
 
-		vkCmdPipelineBarrier(buffer, 0, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR, 0, 0, VK_NULL_HANDLE, 0, VK_NULL_HANDLE, 1, &toGeneral);
+			vkCmdPipelineBarrier(buffer, 0, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR, 0, 0, VK_NULL_HANDLE, 0, VK_NULL_HANDLE, 1, &toGeneral);
+		}
+
 		vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, graphicsPipelineLayout, 0, 1, &globalDescriptorSets[currentFrameIndex], 0, nullptr);
+		
+		//Update uniform buffers and push changes to the gpu
 		Uniform info{};
-		info.viewInverse = glm::inverse(glm::transpose(camera.getView())); //view matrix is already inversed
+		info.viewInverse = glm::inverse(glm::transpose(camera.getView()));
 		info.projInverse = camera.getProjection(); //projection matrix is already inversed
 
 		uniformBuffers[currentFrameIndex]->writeToBuffer(&info);
 		uniformBuffers[currentFrameIndex]->flush();
-		
-		{
-			VkMemoryBarrier barrier{
-				.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
-				.srcAccessMask = 0,
-				.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT
-			};
 
-			vkCmdPipelineBarrier(buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 1, &barrier, 0, VK_NULL_HANDLE, 0, VK_NULL_HANDLE);
-		}
-
+		//Call the ray tracing command
 		VkExtent2D size = swapChain->getSwapChainExtent();
-
-
 		vkCmdTraceRaysKHR(buffer, &raygenRegion, &missRegion, &hitRegion, &callableRegion, size.width, size.height, 1);
 
 		//The rendered image will later be processed by the denoiser an then copied to the swap chain
 
+		//copy rendered image to swap chain for presentation
 		copyImageToSwapChain(buffer, swapChain->getImage(currentImageIndex), storageImage.image, size);
 
 		endFrame();

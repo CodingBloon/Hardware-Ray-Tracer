@@ -4,7 +4,6 @@
 #define PI_DIV_4 0.7853981633974F
 
 #define MISS_DEPTH 1000
-//#define INFINTE 1e31F
 #define INFINITE 1e32F
 
 struct UniformBuffer {
@@ -46,11 +45,6 @@ void rgenMain() {
 
     TraceRay(topLevelAS, rayFlags, 0xff, 0, 0, 0, ray, payload);
 
-    float r = ray.Origin.x < 0.0 ? -ray.Origin.x : ray.Origin.x;
-    float g = ray.Origin.y < 0.0 ? -ray.Origin.y : ray.Origin.y;
-    float b = ray.Origin.z < 0.0 ? -ray.Origin.z : ray.Origin.z;
-
-    // float3 color = float3(r, g, b);
     float3 color = payload.color;
 
     outImage[int2(launchID)] = float4(color, 1.0);

@@ -21,16 +21,10 @@
     <ClCompile Include="Graphics\Window.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
-    <ClCompile Include="Graphics\vulkan_core\Pipeline.cpp">
-      <Filter>Quelldateien</Filter>
-    </ClCompile>
     <ClCompile Include="Graphics\vulkan_core\Buffer.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
     <ClCompile Include="Graphics\vulkan_core\Device.cpp">
-      <Filter>Quelldateien</Filter>
-    </ClCompile>
-    <ClCompile Include="Graphics\Acceleration\Scene.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
     <ClCompile Include="Graphics\vulkan_core\SwapChain.cpp">
@@ -45,15 +39,18 @@
     <ClCompile Include="Graphics\Camera.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
+    <ClCompile Include="Graphics\RayTracing\Scene.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\RayTracing\RTApp.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Graphics\Window.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
     <ClInclude Include="Graphics\vulkan_core\Device.h">
-      <Filter>Headerdateien</Filter>
-    </ClInclude>
-    <ClInclude Include="Graphics\vulkan_core\Pipeline.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
     <ClInclude Include="Graphics\Denoiser\Denoiser.h">
@@ -65,12 +62,6 @@
     <ClInclude Include="Graphics\Definitions.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
-    <ClInclude Include="Graphics\Acceleration\Scene.h">
-      <Filter>Headerdateien</Filter>
-    </ClInclude>
-    <ClInclude Include="Graphics\Acceleration\ExternalCalls.h">
-      <Filter>Headerdateien</Filter>
-    </ClInclude>
     <ClInclude Include="Graphics\vulkan_core\SwapChain.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
@@ -80,10 +71,13 @@
     <ClInclude Include="Graphics\vulkan_core\Descriptors.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
-    <ClInclude Include="Graphics\vulkan_core\SlangCompiler.h">
+    <ClInclude Include="Graphics\Camera.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
-    <ClInclude Include="Graphics\Camera.h">
+    <ClInclude Include="Graphics\RayTracing\Scene.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\RayTracing\RTApp.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
   </ItemGroup>
