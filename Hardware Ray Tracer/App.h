@@ -20,7 +20,22 @@
 #define vkCmdTraceRaysKHR reinterpret_cast<PFN_vkCmdTraceRaysKHR>(vkGetDeviceProcAddr(device.getDevice(), "vkCmdTraceRaysKHR"))
 #define vkGetAccelerationStructureDeviceAddressKHR reinterpret_cast<PFN_vkGetAccelerationStructureDeviceAddressKHR>(vkGetDeviceProcAddr(device.getDevice(), "vkGetAccelerationStructureDeviceAddressKHR"))
 
+
+template <typename T, typename... Rest>
+void hashCombine(std::size_t& seed, const T& v, const Rest&... rest) {
+	seed ^= std::hash<T>{}(v)+0x9e3779b9 + (seed << 6) + (seed >> 2);
+	(hashCombine(seed, rest), ...);
+};
+
 namespace Core {
+
+	struct Vertex {
+		float pos[3];
+
+		bool operator==(const Vertex& other) const {
+			return pos[0] == other.pos[0] && pos[1] == other.pos[1] && pos[2] == other.pos[2];
+		}
+	};
 
 	enum BindingPoints {
 		eTextures = 0,
@@ -33,10 +48,6 @@ namespace Core {
 		VkBuffer buffer;
 		VkDeviceMemory memory;
 		VkDeviceAddress address;
-	};
-
-	struct Vertex {
-		float pos[3];
 	};
 
 	struct Mesh {
@@ -67,6 +78,7 @@ namespace Core {
 		~App();
 		
 		void run();
+
 	private:
 		// -------------------- RAY TRACING PIPELINE CREATION
 		void createRayTracingPipelineLayout();
@@ -111,6 +123,7 @@ namespace Core {
 		void freeCommandBuffers();
 
 		// -------------------- TEST FUNCTIONS --------------------
+		void loadModel(std::string path);
 		void generateMesh();
 	private:
 

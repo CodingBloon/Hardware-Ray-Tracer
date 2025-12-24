@@ -1,6 +1,7 @@
 #include "App.h"
 #include <ctime>
-#include "RTApp.h"
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "../tinyobj/tiny_obj_loader.h"
 
 /*
  * Der Hardware Ray Tracer nutzt die dedizierte Ray-Tracing-Hardware moderner Grafikkarten. 
@@ -16,11 +17,26 @@
  * ALPHA-RELASE: Eingeschränkte Funktionen (Denoiser etc.)
  */
 
+namespace std {
+	template<>
+	struct hash<Core::Vertex> {
+		size_t operator()(Core::Vertex const& vert) const {
+			size_t seed = 0;
+			hashCombine(seed, vert.pos[0], vert.pos[1], vert.pos[2], 0);
+			return seed;
+		}
+	};
+}
+
 Core::App::App() : window({800, 600, "Ray Tracing :)"}), device(&window), swapChain(std::make_unique<SwapChain>(device, window.getExtent())) {
 
-	std::cout << "Generating Mesh..." << std::endl;
+	/*std::cout << "Generating Mesh..." << std::endl;
 	generateMesh();
-	std::cout << "Mesh generated!" << std::endl;
+	std::cout << "Mesh generated!" << std::endl;*/
+
+	std::cout << "Loading Mesh..." << std::endl;
+	loadModel("models/Monkey.obj");
+	std::cout << "Mesh loaded!" << std::endl;
 
 	std::cout << "Creating Acceleration Structures..." << std::endl;
 	createBottomLevelAS();
@@ -69,7 +85,7 @@ void Core::App::run() {
 
 		camera.handleInputs(window.getGLFWWindow(), delta);
 		float aspectRatio = swapChain->extentAspectRatio();
-		camera.setPerspectiveProjection(glm::radians(50.f), aspectRatio, 0.001f, 100000.f);
+		camera.setPerspectiveProjection(glm::radians(60.f), aspectRatio, 0.001f, 100000.f);
 
 		//update buffers
 
@@ -82,7 +98,7 @@ void Core::App::run() {
 
 // -------------------- RAY TRACING PIPELINE CREATION --------------------
 
-/*void Core::App::createRayTracingPipelineLayout() {
+void Core::App::createRayTracingPipelineLayout() {
 
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -133,8 +149,6 @@ void Core::App::createRayTracingDescriptorSets() {
 }
 
 void Core::App::createStorageImage() {
-	VK_FORMAT_R32G32B32A32_SFLOAT;
-
 	VkImageCreateInfo imageInfo{};
 	imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 	imageInfo.imageType = VK_IMAGE_TYPE_2D;
@@ -178,17 +192,14 @@ void Core::App::createRayTracingPipeline() {
 		info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 
 	readShader("shaders/raytracing.slang.spv", &rtShaderModule);
-	//stages[eRayGen].pNext = &shaderCode;
 	stages[eRayGen].pName = "rgenMain";
 	stages[eRayGen].stage = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
 	stages[eRayGen].module = rtShaderModule;
 
-	//stages[eMiss].pNext = &shaderCode;
 	stages[eMiss].pName = "rmissMain";
 	stages[eMiss].stage = VK_SHADER_STAGE_MISS_BIT_KHR;
 	stages[eMiss].module = rtShaderModule;
 
-	//stages[eClosestHit].pNext = &shaderCode;
 	stages[eClosestHit].pName = "rchitMain";
 	stages[eClosestHit].stage = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
 	stages[eClosestHit].module = rtShaderModule;
@@ -282,11 +293,11 @@ void Core::App::createShaderBindingTable(const VkRayTracingPipelineCreateInfoKHR
 	callableRegion.deviceAddress = 0;
 	callableRegion.size = 0;
 	callableRegion.stride = 0;
-}*/
+}
 
 // -------------------- ACCELERATION STRUCTURE CREATION --------------------
 
-/*void Core::App::primitiveToGeometry(const Mesh& mesh, VkAccelerationStructureGeometryKHR& geometry, VkAccelerationStructureBuildRangeInfoKHR& rangeInfo) {
+void Core::App::primitiveToGeometry(const Mesh& mesh, VkAccelerationStructureGeometryKHR& geometry, VkAccelerationStructureBuildRangeInfoKHR& rangeInfo) {
 	const auto triangeCount = static_cast<uint32_t>(mesh.indices.size() / 3U);
 
 	VkAccelerationStructureGeometryTrianglesDataKHR triangles{
@@ -345,7 +356,7 @@ void Core::App::createTopLevelAS() {
 		asInstance.accelerationStructureReference = blasAccel[i].address;
 		asInstance.instanceShaderBindingTableRecordOffset = 0;
 		asInstance.mask = 0xFF;
-		//asInstance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_CULL_DISABLE_BIT_NV,
+		asInstance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_CULL_DISABLE_BIT_NV,
 		tlasInstances.emplace_back(asInstance);
 	}
 
@@ -467,9 +478,9 @@ void Core::App::createAccelerationStructure(VkAccelerationStructureTypeKHR asTyp
 	device.endSingleTimeCommands(cmd);
 
 	//The scratch buffer will be deleted automatically
-}*/
+}
 
-/*void Core::App::createUniformBuffers() {
+void Core::App::createUniformBuffers() {
 	for (uint32_t i = 0; i < uniformBuffers.size(); i++) {
 		uniformBuffers[i] = std::make_unique<Buffer>(
 			device,
@@ -480,10 +491,10 @@ void Core::App::createAccelerationStructure(VkAccelerationStructureTypeKHR asTyp
 
 		uniformBuffers[i]->map();
 	}
-}*/
+}
 
 //-------------------- INPUT SHADER --------------------
-/*void Core::App::readShader(std::string file, VkShaderModule* module) {
+void Core::App::readShader(std::string file, VkShaderModule* module) {
 	std::vector<char> code = readShaderFile(file);
 
 	createShaderModule(code, module);
@@ -510,7 +521,7 @@ void Core::App::createShaderModule(const std::vector<char>& code, VkShaderModule
 	info.pCode = reinterpret_cast<const uint32_t*>(code.data());
 
 	VK_CHECK_RESULT(vkCreateShaderModule(device.getDevice(), &info, nullptr, module), "failed to create Shader module");
-}*/
+}
 
 void Core::App::createCommandBuffers() {
 	commandBuffers.resize(SwapChain::MAX_FRAMES_IN_FLIGHT);
@@ -743,7 +754,7 @@ void Core::App::rayTraceScene() {
 		VkExtent2D size = swapChain->getSwapChainExtent();
 		vkCmdTraceRaysKHR(buffer, &raygenRegion, &missRegion, &hitRegion, &callableRegion, size.width, size.height, 1);
 
-		//The rendered image will later be processed by the denoiser an then copied to the swap chain
+		//The image will later be denoised by DLSS Ray Reconstruction and then upscaled by DLSS Super Resolution
 
 		//copy rendered image to swap chain for presentation
 		copyImageToSwapChain(buffer, swapChain->getImage(currentImageIndex), storageImage.image, size);
@@ -778,6 +789,45 @@ void Core::App::freeCommandBuffers() {
 	vkFreeCommandBuffers(device.getDevice(), device.getCommandPool(), SwapChain::MAX_FRAMES_IN_FLIGHT, commandBuffers.data());
 }
 
+
+void Core::App::loadModel(std::string path) {
+	std::vector<Vertex> vertices;
+	std::vector<uint32_t> indices;
+
+	tinyobj::attrib_t attributes;
+	std::vector<tinyobj::shape_t> shapes;
+	std::vector<tinyobj::material_t> materials;
+	std::string err;
+
+	if (!tinyobj::LoadObj(&attributes, &shapes, &materials, &err, path.c_str()))
+		throw std::runtime_error(err);
+
+	std::unordered_map<Vertex, uint32_t> uniqueVertices{};
+	for (const auto& shape : shapes) {
+		for (const auto& index : shape.mesh.indices) {
+			Vertex vertex{};
+			if (index.vertex_index >= 0) {
+				vertex = {
+					attributes.vertices[3 * index.vertex_index + 0],
+					attributes.vertices[3 * index.vertex_index + 1],
+					attributes.vertices[3 * index.vertex_index + 2],
+				};
+			}
+
+			if (uniqueVertices.count(vertex) == 0) {
+				uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
+				vertices.push_back(vertex);
+			}
+
+			indices.push_back(uniqueVertices[vertex]);
+		}
+	}
+
+	std::cout << "Loaded " << (indices.size() / 3) << " triangles!" << std::endl;
+	std::cout << "Loaded " << (vertices.size()) << " vertices!" << std::endl;
+
+	meshes.push_back(Mesh{ device, vertices, indices });
+}
 
 // -------------------- TEST FUNCTIONS --------------------
 void Core::App::generateMesh() {

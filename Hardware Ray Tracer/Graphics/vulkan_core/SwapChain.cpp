@@ -97,8 +97,8 @@ VkResult Core::SwapChain::submitCommandBuffers(const VkCommandBuffer* buffers, u
 void Core::SwapChain::init() {
 	createSwapChain();
 	createImageViews();
-	createDepthResources();
 	createRenderPass();
+	createDepthResources();
 	createFramebuffers();
 	createSyncObjects();
 }
@@ -225,10 +225,10 @@ void Core::SwapChain::createRenderPass() {
 	dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
 	dependency.srcAccessMask = 0;
 	dependency.srcStageMask =
-		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
+		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
 	dependency.dstSubpass = 0;
 	dependency.dstStageMask =
-		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
+		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
 	dependency.dstAccessMask =
 		VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 

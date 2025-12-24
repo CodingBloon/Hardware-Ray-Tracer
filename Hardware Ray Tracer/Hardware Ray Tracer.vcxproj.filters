@@ -39,12 +39,6 @@
     <ClCompile Include="Graphics\Camera.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
-    <ClCompile Include="Graphics\RayTracing\Scene.cpp">
-      <Filter>Quelldateien</Filter>
-    </ClCompile>
-    <ClCompile Include="Graphics\RayTracing\RTApp.cpp">
-      <Filter>Quelldateien</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Graphics\Window.h">
@@ -72,12 +66,6 @@
       <Filter>Headerdateien</Filter>
     </ClInclude>
     <ClInclude Include="Graphics\Camera.h">
-      <Filter>Headerdateien</Filter>
-    </ClInclude>
-    <ClInclude Include="Graphics\RayTracing\Scene.h">
-      <Filter>Headerdateien</Filter>
-    </ClInclude>
-    <ClInclude Include="Graphics\RayTracing\RTApp.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
   </ItemGroup>
