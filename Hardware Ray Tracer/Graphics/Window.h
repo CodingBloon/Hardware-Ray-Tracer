@@ -17,9 +17,9 @@ namespace Core {
 		bool wasWindowResized() { return frameBufferResized; }
 		void resetWindowResizeFlag() { frameBufferResized = false; }
 		GLFWwindow* getGLFWWindow() { return window; }
+		void setWindowTitle(std::string title) { this->title = title; glfwSetWindowTitle(window, title.c_str()); }
 	private:
 		void initWindow();
-		void resizeWindow();
 
 	private:
 		int height, width;

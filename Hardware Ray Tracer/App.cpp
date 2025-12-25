@@ -28,9 +28,9 @@ namespace std {
 	};
 }
 
-Core::App::App() : window({800, 600, "Ray Tracing :)"}), device(&window), swapChain(std::make_unique<SwapChain>(device, window.getExtent())) {
+Core::App::App() : window({800, 600, "Ray Tracing | DLSS 3.5"}), device(&window), swapChain(std::make_unique<SwapChain>(device, window.getExtent())) {
 
-	loadModel("models/Cube.obj");
+	loadModel("models/Monkey.obj");
 	//generateMesh();
 
 	createBottomLevelAS();
@@ -547,6 +547,9 @@ void Core::App::recreateSwapChain() {
 void Core::App::recreateStorageImage() {
 	destroyStorageImage();
 	createStorageImage();
+	createRayTracingDescriptorSets();
+
+
 }
 
 // -------------------- RENDER FUNCTIONS --------------------
