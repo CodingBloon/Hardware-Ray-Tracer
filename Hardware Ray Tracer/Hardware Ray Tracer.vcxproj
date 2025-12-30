@@ -129,6 +129,9 @@
   <ItemGroup>
     <ClCompile Include="App.cpp" />
     <ClCompile Include="Graphics\Camera.cpp" />
+    <ClCompile Include="Graphics\RayTracing\RTApp.cpp" />
+    <ClCompile Include="Graphics\RayTracing\RTPipeline.cpp" />
+    <ClCompile Include="Graphics\RayTracing\Scene.cpp" />
     <ClCompile Include="Graphics\vulkan_core\Buffer.cpp" />
     <ClCompile Include="Graphics\vulkan_core\Descriptors.cpp" />
     <ClCompile Include="Graphics\vulkan_core\Device.cpp" />
@@ -141,6 +144,10 @@
     <ClInclude Include="Graphics\Camera.h" />
     <ClInclude Include="Graphics\Definitions.h" />
     <ClInclude Include="Graphics\Denoiser\Denoiser.h" />
+    <ClInclude Include="Graphics\RayTracing\Debugging.h" />
+    <ClInclude Include="Graphics\RayTracing\RTPipeline.h" />
+    <ClInclude Include="Graphics\RayTracing\RTApp.h" />
+    <ClInclude Include="Graphics\RayTracing\Scene.h" />
     <ClInclude Include="Graphics\vulkan_core\Buffer.h" />
     <ClInclude Include="Graphics\vulkan_core\Descriptors.h" />
     <ClInclude Include="Graphics\vulkan_core\Device.h" />

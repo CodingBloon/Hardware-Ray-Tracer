@@ -326,8 +326,10 @@ void Core::Device::createLogicalDevice() {
 		queueCreateInfos.push_back(queueCreateInfo);
 	}
 	
+
 	VkPhysicalDeviceFeatures deviceFeatures = {};
 	deviceFeatures.samplerAnisotropy = VK_TRUE;
+	deviceFeatures.shaderInt64 = VK_TRUE;
 
 	VkPhysicalDeviceBufferDeviceAddressFeatures bufferDeviceAddressFeature{};
 	bufferDeviceAddressFeature.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
@@ -345,7 +347,6 @@ void Core::Device::createLogicalDevice() {
 	VkPhysicalDeviceSynchronization2Features synchronizationFeature{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES_KHR };
 	synchronizationFeature.synchronization2 = VK_TRUE;
 	accelStructureFeature.pNext = &synchronizationFeature;
-
 
 	VkPhysicalDeviceFeatures2 deviceFeatures2{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
 	deviceFeatures2.features = deviceFeatures;

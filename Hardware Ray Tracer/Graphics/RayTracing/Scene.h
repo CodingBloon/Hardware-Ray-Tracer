@@ -1,0 +1,130 @@
+#pragma once
+
+#include "Debugging.h"
+
+#include "../vulkan_core/Device.h"
+#include "../vulkan_core/Buffer.h"
+#include "../tinyobj/tiny_obj_loader.h"
+#include <unordered_map>
+
+#define vkCmdBuildAccelerationStructuresKHR reinterpret_cast<PFN_vkCmdBuildAccelerationStructuresKHR>(vkGetDeviceProcAddr(device.getDevice(), "vkCmdBuildAccelerationStructuresKHR"))
+#define vkCreateAccelerationStructureKHR reinterpret_cast<PFN_vkCreateAccelerationStructureKHR>(vkGetDeviceProcAddr(device.getDevice(), "vkCreateAccelerationStructureKHR"))
+#define vkGetAccelerationStructureBuildSizesKHR reinterpret_cast<PFN_vkGetAccelerationStructureBuildSizesKHR>(vkGetDeviceProcAddr(device.getDevice(), "vkGetAccelerationStructureBuildSizesKHR"))
+#define vkDestroyAccelerationStructureKHR reinterpret_cast<PFN_vkDestroyAccelerationStructureKHR>(vkGetDeviceProcAddr(device.getDevice(), "vkDestroyAccelerationStructureKHR"))
+#define vkGetAccelerationStructureDeviceAddressKHR reinterpret_cast<PFN_vkGetAccelerationStructureDeviceAddressKHR>(vkGetDeviceProcAddr(device.getDevice(), "vkGetAccelerationStructureDeviceAddressKHR"))
+
+template <typename T, typename... Rest>
+void hashCombine(std::size_t& seed, const T& v, const Rest&... rest) {
+	seed ^= std::hash<T>{}(v)+0x9e3779b9 + (seed << 6) + (seed >> 2);
+	(hashCombine(seed, rest), ...);
+};
+
+namespace RayTracing {
+
+	struct Vertex {
+		float pos[3];
+		float normal[3];
+		float uv[2];
+
+		bool operator==(const Vertex& other) const {
+			return pos[0] == other.pos[0] && pos[1] == other.pos[1] && pos[2] == other.pos[2] &&
+				normal[0] == other.normal[0] && normal[1] == other.normal[1] && normal[2] == other.normal[2] &&
+				uv[0] == other.uv[0] && uv[1] == other.uv[1];
+		}
+	};
+
+	struct Mesh {
+		Mesh(Core::Device& device, std::vector<Vertex> vertices, std::vector<uint32_t> indices);
+
+		std::vector<Vertex> vertices;
+		std::vector<uint32_t> indices;
+
+		std::unique_ptr<Core::Buffer> vertexBuffer;
+		std::unique_ptr<Core::Buffer> indexBuffer;
+	};
+
+	struct Material {
+		float color[3];
+		float metallic;
+		float roughness;
+	};
+
+	struct Light {
+		float pos[3];
+		float color[3];
+		float intensity;
+		uint32_t type;
+	};
+
+	struct AccelerationStructure {
+		VkAccelerationStructureKHR handle;
+		VkBuffer buffer;
+		VkDeviceMemory memory;
+		VkDeviceAddress address;
+	};
+
+	struct InstanceInfo {
+		uint64_t vertexAddress; //address of vertex buffer
+		uint64_t indexAddress; //address of index buffer
+	};
+
+	struct SceneBufferInfo {
+		uint64_t mBuf; //address of material buffer
+		uint64_t mStride; //byte stride of material
+
+		uint64_t lBuf; //address of light buffer
+		uint64_t lStride; //byte stride of light
+		uint64_t lCount; //count of lights
+
+		uint64_t vStride; //byte stride of vertices
+
+		uint64_t sBuf; //address of scene buffer
+		uint64_t sStride; //byte stride of scene info
+	};
+
+	class Scene {
+	public:
+		Scene(Core::Device& device);
+		~Scene();
+
+		void loadModel(std::string path);
+		void build();
+		inline AccelerationStructure getTlas() { return tlasAccel; }
+		inline std::unique_ptr<Core::Buffer>& getSceneInfoBuffer() { return sceneInfoBuffer; }
+
+		Scene(const Scene&) = delete;
+		Scene operator=(Scene&) = delete;
+		Scene(const Scene&&) = delete;
+		Scene operator=(Scene&&) = delete;
+	private:
+		void primitiveToGeometry(const Mesh& mesh, VkAccelerationStructureGeometryKHR& geometry, VkAccelerationStructureBuildRangeInfoKHR& rangeInfo);
+		void createBottomAS();
+		void createTopAS();
+		void createAccelerationStructure(VkAccelerationStructureTypeKHR asType,
+			AccelerationStructure& accelStructure,
+			VkAccelerationStructureGeometryKHR& asGeometry,
+			VkAccelerationStructureBuildRangeInfoKHR& asBuildRangeInfo,
+			VkBuildAccelerationStructureFlagsKHR flags);
+
+		void createMaterials();
+		void createLights();
+		void createSceneInformation();
+		void createSceneInfoBuffer();
+
+		void stageInformation(void* data, uint64_t size, VkBuffer dstBuffer);
+	private:
+		Core::Device& device;
+
+		std::vector<Mesh> meshes;
+		std::vector<AccelerationStructure> blasAccel;
+		AccelerationStructure tlasAccel;
+
+		std::unique_ptr<Core::Buffer> materialBuffer;
+		std::unique_ptr<Core::Buffer> lightBuffer;
+		std::unique_ptr<Core::Buffer> vertexBuffer;
+		std::unique_ptr<Core::Buffer> indexBuffer;
+		std::unique_ptr<Core::Buffer> instanceBuffer;
+		std::unique_ptr<Core::Buffer> sceneInfoBuffer;
+	};
+
+}

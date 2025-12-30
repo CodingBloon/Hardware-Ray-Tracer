@@ -31,10 +31,42 @@ namespace Core {
 
 	struct Vertex {
 		float pos[3];
+		float normal[3];
+		float uv[2];
 
 		bool operator==(const Vertex& other) const {
-			return pos[0] == other.pos[0] && pos[1] == other.pos[1] && pos[2] == other.pos[2];
+			return pos[0] == other.pos[0] && pos[1] == other.pos[1] && pos[2] == other.pos[2] &&
+				normal[0] == other.normal[0] && normal[1] == other.normal[1] && normal[2] == other.normal[2] &&
+				uv[0] == other.uv[0] && uv[1] == other.uv[1];
 		}
+	};
+
+	struct Material {
+		float color[3];
+		float metallic;
+		float roughness;
+	};
+
+	struct Light {
+		float pos[3];
+		float color[3];
+		float intensity;
+		uint32_t type;
+	};
+
+	struct SceneBufferInfo {
+		uint64_t mBuf;
+		uint64_t mStride;
+
+		uint64_t lBuf;
+		uint64_t lStride;
+		uint64_t lCount;
+
+		uint64_t vBuf;
+		uint64_t vStride;
+		
+		uint64_t iBuf;
+		uint64_t iStride;
 	};
 
 	enum BindingPoints {
@@ -99,6 +131,7 @@ namespace Core {
 
 		// -------------------- BUFFER CREATION --------------------
 		void createUniformBuffers();
+		void createMaterialAndLightBuffer();
 
 		// -------------------- INPUT SHADER --------------------
 		void readShader(std::string file, VkShaderModule* module);
@@ -124,9 +157,11 @@ namespace Core {
 
 		// -------------------- TEST FUNCTIONS --------------------
 		void loadModel(std::string path);
+		void createMaterial();
+		void createLight();
+		void createSceneInfo();
 		void generateMesh();
 	private:
-
 		Window window;
 		Device device;
 		std::unique_ptr<SwapChain> swapChain;
@@ -136,6 +171,10 @@ namespace Core {
 		std::vector<AccelerationStructure> blasAccel;
 		AccelerationStructure tlasAccel;
 		StorageImage storageImage;
+
+		std::unique_ptr<Buffer> materialBuffer;
+		std::unique_ptr<Buffer> lightBuffer;
+		std::unique_ptr<Buffer> sceneInfoBuffer;
 
 		std::unique_ptr<DescriptorPool> globalPool{};
 		std::unique_ptr<DescriptorSetLayout> globalSetLayout;

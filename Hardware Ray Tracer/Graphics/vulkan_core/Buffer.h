@@ -28,11 +28,11 @@ namespace Core {
         VkBuffer getBuffer() const { return buffer; }
         void* getMappedMemory() const { return mapped; }
         uint32_t getInstanceCount() const { return instanceCount; }
+        VkDeviceSize getBufferSize() const { return bufferSize; }
         VkDeviceSize getInstanceSize() const { return instanceSize; }
         VkDeviceSize getAlignmentSize() const { return instanceSize; }
         VkBufferUsageFlags getUsageFlags() const { return usageFlags; }
         VkMemoryPropertyFlags getMemoryPropertyFlags() const { return memoryPropertyFlags; }
-        VkDeviceSize getBufferSize() const { return bufferSize; }
 		VkDeviceAddress getAddress() { return lveDevice.getBufferDeviceAddress(buffer); }
 
     private:

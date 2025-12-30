@@ -1,10 +1,7 @@
-#include <iostream>
-#include "App.h"
+#include "Graphics/RayTracing/RTApp.h"
 
 int main() {
-	Core::App app{};
-
-	throw std::runtime_error("Something went wrong!");
+	RayTracing::RTApp app;
 
 	app.run();
 }

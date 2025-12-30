@@ -30,8 +30,11 @@ namespace std {
 
 Core::App::App() : window({800, 600, "Ray Tracing | DLSS 3.5"}), device(&window), swapChain(std::make_unique<SwapChain>(device, window.getExtent())) {
 
+	createLight();
+	createMaterial();
+
 	loadModel("models/Monkey.obj");
-	//generateMesh();
+	createSceneInfo();
 
 	createBottomLevelAS();
 	createTopLevelAS();
@@ -100,6 +103,7 @@ void Core::App::createRayTracingDescriptorSets() {
 		.addPoolSize(VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, SwapChain::MAX_FRAMES_IN_FLIGHT)
 		.addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, SwapChain::MAX_FRAMES_IN_FLIGHT)
 		.addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, SwapChain::MAX_FRAMES_IN_FLIGHT)
+		.addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, SwapChain::MAX_FRAMES_IN_FLIGHT)
 		.build();
 
 	uniformBuffers.resize(SwapChain::MAX_FRAMES_IN_FLIGHT);
@@ -109,6 +113,7 @@ void Core::App::createRayTracingDescriptorSets() {
 		.addBinding(0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, VK_SHADER_STAGE_ALL, 1)
 		.addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_ALL, 1)
 		.addBinding(2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL, 1)
+		.addBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_ALL, 1)
 		.build();
 
 	globalDescriptorSets.resize(SwapChain::MAX_FRAMES_IN_FLIGHT);
@@ -122,6 +127,8 @@ void Core::App::createRayTracingDescriptorSets() {
 	accelInfo.accelerationStructureCount = 1;
 	accelInfo.pAccelerationStructures = &tlasAccel.handle;
 
+	auto sceneInfo = sceneInfoBuffer->descriptorInfo();
+
 	for (int i = 0; i < SwapChain::MAX_FRAMES_IN_FLIGHT; i++) {
 		auto uboBufInfo = uniformBuffers[i]->descriptorInfo();
 
@@ -129,6 +136,7 @@ void Core::App::createRayTracingDescriptorSets() {
 			.writeAccelStructure(0, &accelInfo)
 			.writeImage(1, &imageInfo)
 			.writeBuffer(2, &uboBufInfo)
+			.writeBuffer(3, &sceneInfo)
 			.build(globalDescriptorSets[i]);
 	}
 }
@@ -426,9 +434,6 @@ void Core::App::createAccelerationStructure(VkAccelerationStructureTypeKHR asTyp
 	std::vector<uint32_t> maxPrimCount(1);
 	maxPrimCount[0] = asBuildRangeInfo.primitiveCount;
 
-	if(asType == VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR)
-		std::cout << "Primitive Count: " << maxPrimCount[0] << std::endl;
-
 	VkAccelerationStructureBuildSizesInfoKHR asBuildSize{ .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR };
 	vkGetAccelerationStructureBuildSizesKHR(device.getDevice(), VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &asBuildInfo, maxPrimCount.data(), &asBuildSize);
 
@@ -480,6 +485,10 @@ void Core::App::createUniformBuffers() {
 
 		uniformBuffers[i]->map();
 	}
+}
+
+void Core::App::createMaterialAndLightBuffer()
+{
 }
 
 //-------------------- INPUT SHADER --------------------
@@ -548,8 +557,6 @@ void Core::App::recreateStorageImage() {
 	destroyStorageImage();
 	createStorageImage();
 	createRayTracingDescriptorSets();
-
-
 }
 
 // -------------------- RENDER FUNCTIONS --------------------
@@ -740,7 +747,7 @@ void Core::App::rayTraceScene() {
 		//Update uniform buffers and push changes to the gpu
 		Uniform info{};
 		info.viewInverse = glm::inverse(glm::transpose(camera.getView()));
-		info.projInverse =  glm::inverse(glm::transpose(camera.getProjection())); //projection matrix is already inversed
+		info.projInverse =  glm::inverse(glm::transpose(camera.getProjection()));
 
 		uniformBuffers[currentFrameIndex]->writeToBuffer(&info);
 		uniformBuffers[currentFrameIndex]->flush();
@@ -803,11 +810,20 @@ void Core::App::loadModel(std::string path) {
 		for (const auto& index : shape.mesh.indices) {
 			Vertex vertex{};
 			if (index.vertex_index >= 0) {
-				vertex = {
-					attributes.vertices[3 * index.vertex_index + 0],
-					attributes.vertices[3 * index.vertex_index + 1],
-					attributes.vertices[3 * index.vertex_index + 2],
-				};
+				vertex.pos[0] = attributes.vertices[3 * index.vertex_index + 0];
+				vertex.pos[1] = -attributes.vertices[3 * index.vertex_index + 1];
+				vertex.pos[2] = attributes.vertices[3 * index.vertex_index + 2];
+			}
+
+			if (index.normal_index >= 0) {
+				vertex.normal[0] = attributes.normals[3 * index.normal_index + 0];
+				vertex.normal[1] = -attributes.normals[3 * index.normal_index + 1];
+				vertex.normal[2] = attributes.normals[3 * index.normal_index + 2];
+			}
+
+			if (index.texcoord_index >= 0) {
+				vertex.uv[0] = attributes.texcoords[2 * index.texcoord_index + 0];
+				vertex.uv[1] = attributes.texcoords[2 * index.texcoord_index + 1];
 			}
 
 			if (uniqueVertices.count(vertex) == 0) {
@@ -820,6 +836,85 @@ void Core::App::loadModel(std::string path) {
 	}
 
 	meshes.push_back(Mesh{ device, vertices, indices });
+}
+
+void Core::App::createMaterial() {
+	Material m{
+		.color = {0.f, 1.f, 1.f},
+		.metallic = 0.f,
+		.roughness = 1.f
+	};
+
+	Buffer stagingBuffer{
+		device, sizeof(Material), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+	};
+
+	stagingBuffer.map();
+	stagingBuffer.writeToBuffer(&m);
+
+	materialBuffer = std::make_unique<Buffer>(
+		device, sizeof(Material), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT
+	);
+
+	device.copyBuffer(stagingBuffer.getBuffer(), materialBuffer->getBuffer(), sizeof(Material));
+}
+
+void Core::App::createLight() {
+	Light l{
+		.pos = {4.f, 3.f, 4.f},
+		.color = {1.f, 1.f, 1.f},
+		.intensity = 5.f
+	};
+
+	Buffer stagingBuffer{
+		device, sizeof(Light), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+	};
+
+	stagingBuffer.map();
+	stagingBuffer.writeToBuffer(&l);
+
+	lightBuffer = std::make_unique<Buffer>(
+		device, sizeof(Light), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT
+	);
+
+	device.copyBuffer(stagingBuffer.getBuffer(), lightBuffer->getBuffer(), sizeof(Light));
+}
+
+void Core::App::createSceneInfo() {
+	if (materialBuffer == nullptr || lightBuffer == nullptr) throw std::runtime_error("no buffer provided!");
+
+	std::cout << "Material Buffer: " << materialBuffer->getAddress() << std::endl 
+		<< "Light Buffer: " << lightBuffer->getAddress() << std::endl 
+		<< "Vertex Buffer: " << meshes[0].vertexBuffer->getAddress() << std::endl 
+		<< "Index Buffer: " << meshes[0].indexBuffer->getAddress() << std::endl;
+
+	SceneBufferInfo info{
+		.mBuf = materialBuffer->getAddress(),
+		.mStride = sizeof(Material),
+
+		.lBuf = lightBuffer->getAddress(),
+		.lStride = sizeof(Light),
+		.lCount = 1,
+
+		.vBuf = meshes[0].vertexBuffer->getAddress(),
+		.vStride = sizeof(Vertex),
+
+		.iBuf = meshes[0].indexBuffer->getAddress(),
+		.iStride = sizeof(uint32_t)
+	};
+
+	Buffer stagingBuffer{
+		device, sizeof(SceneBufferInfo), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+	};
+
+	stagingBuffer.map();
+	stagingBuffer.writeToBuffer(&info);
+
+	sceneInfoBuffer = std::make_unique<Buffer>(
+		device, sizeof(SceneBufferInfo), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT
+	);
+
+	device.copyBuffer(stagingBuffer.getBuffer(), sceneInfoBuffer->getBuffer(), sizeof(SceneBufferInfo));
 }
 
 // -------------------- TEST FUNCTIONS --------------------
