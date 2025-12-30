@@ -152,6 +152,8 @@ void RayTracing::RTApp::rayTraceScene() {
 
 		endFrame();
 	}
+
+	discardFrame = false;
 }
 VkCommandBuffer RayTracing::RTApp::beginFrame() {
 	assert(!frameStarted);
@@ -212,6 +214,6 @@ void RayTracing::RTApp::recreateSwapChain() {
 		std::shared_ptr<Core::SwapChain> oldSwapChain = std::move(swapChain);
 		swapChain = std::make_unique<Core::SwapChain>(device, extent, oldSwapChain);
 
-		if (swapChain->compareSwapFormats(*oldSwapChain.get())) throw std::runtime_error("Swap chain format changed!");
+		if (!swapChain->compareSwapFormats(*oldSwapChain.get())) throw std::runtime_error("Swap chain format changed!");
 	}
 }

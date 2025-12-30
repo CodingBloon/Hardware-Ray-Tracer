@@ -51,6 +51,7 @@ void RayTracing::Pipeline::rebuildRenderOutput(VkFormat format, VkExtent2D exten
 	this->format = format;
 	this->extent = extent;
 	createStorageImage();
+	createDescriptorSets();
 }
 
 void RayTracing::Pipeline::updateTopLevelAS(AccelerationStructure topLevelAS) {
