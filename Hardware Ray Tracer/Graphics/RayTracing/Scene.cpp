@@ -364,6 +364,9 @@ RayTracing::Mesh::Mesh(Core::Device& device, std::vector<Vertex> vertices, std::
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT };
 
+		stagingBuffer.map();
+		stagingBuffer.writeToBuffer((void*)vertices.data());
+
 		device.copyBuffer(stagingBuffer.getBuffer(), vertexBuffer->getBuffer(), sizeof(Vertex) * vertices.size());
 	}
 	{
@@ -379,6 +382,9 @@ RayTracing::Mesh::Mesh(Core::Device& device, std::vector<Vertex> vertices, std::
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
 		};
+
+		stagingBuffer.map();
+		stagingBuffer.writeToBuffer((void*)indices.data());
 
 		device.copyBuffer(stagingBuffer.getBuffer(), indexBuffer->getBuffer(), sizeof(uint32_t) * indices.size());
 	}

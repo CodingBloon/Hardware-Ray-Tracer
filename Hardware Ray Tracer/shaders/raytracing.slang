@@ -192,8 +192,8 @@ void rchitMain(inout HitPayload payload, in BuiltInTriangleIntersectionAttribute
 
     color *= light.color * light.intensity * shadowFactor;
 
-    // payload.color = color;
-    payload.color = float3(1.0, 1.0, 1.0);
+    payload.color = color;
+    //payload.color = float3(1.0, 1.0, 1.0);
 }
 
 [shader("miss")]
