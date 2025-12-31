@@ -2,6 +2,8 @@
 
 RayTracing::RTApp::RTApp() : window({800, 600, "Ray Tracer | DLSS 4"}), device(&window), scene(device) {
 	scene.loadModel("models/Cube.obj");
+	scene.createInstance(0, 0, glm::vec3(0.0f, 2.5f, 0.f));
+	scene.createInstance(0, 1, glm::vec3(0.0f, -2.5f, 0.0f));
 	scene.build();
 
 	recreateSwapChain();

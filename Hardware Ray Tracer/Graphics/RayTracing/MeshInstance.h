@@ -1,5 +1,6 @@
 #pragma once
 
+#include "vulkan/vulkan.h"
 #include <glm/glm.hpp>
 #include <glm/ext/matrix_transform.hpp>
 
@@ -25,20 +26,22 @@ namespace RayTracing {
 
 		inline glm::vec3 getPosition() { return position; }
 		inline glm::vec3 getRotation() { return rotation; }
-		inline glm::mat4 getTransformation() { return transformation; }
+		inline VkTransformMatrixKHR getTransformation() { return transform; }
 		inline uint32_t getMeshId() { return meshId; }
 		inline uint32_t getMaterialId() { return materialId; }
 	private:
 		void calculateTransformation() {
-			this->transformation = glm::mat4();
-			
-			this->transformation = glm::transpose(transformation);
+
+			transform = {
+			1.0f, 0.0f, 0.0f, position.x,
+			0.0f, 1.0f, 0.0f, position.y,
+			0.0f, 0.0f, 1.0f, position.z };
 		}
 	private:
 		uint32_t meshId;
 		uint32_t materialId;
 		glm::vec3 position;
 		glm::vec3 rotation;
-		glm::mat4 transformation;
+		VkTransformMatrixKHR transform;
 	};
 }

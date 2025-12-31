@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Debugging.h"
+#include "MeshInstance.h"
 
 #include "../vulkan_core/Device.h"
 #include "../vulkan_core/Buffer.h"
@@ -46,21 +47,6 @@ namespace RayTracing {
 		std::unique_ptr<Core::Buffer> indexBuffer;
 	};
 
-	struct MeshInstance {
-		MeshInstance(glm::vec3 position, glm::vec3 rotation, uint32_t meshId);
-
-		glm::vec3 position;
-		glm::vec3 rotation;
-		uint32_t meshId;
-
-		void setPosition(glm::vec3 position);
-		void setRotation(glm::vec3 rotation);
-
-		inline glm::vec3 getPosition() { return position; }
-		inline glm::vec3 getRotation() { return rotation; }
-		inline uint32_t getMeshId() { return meshId; }
-	};
-
 	struct Material {
 		float color[3];
 		float metallic;
@@ -84,6 +70,7 @@ namespace RayTracing {
 	struct InstanceInfo {
 		uint64_t vertexAddress; //address of vertex buffer
 		uint64_t indexAddress; //address of index buffer
+		uint32_t materialId; //id of material
 	};
 
 	struct SceneBufferInfo {
@@ -106,7 +93,7 @@ namespace RayTracing {
 		~Scene();
 
 		void loadModel(std::string path);
-		void createInstance(uint32_t meshId, glm::vec3 position = glm::vec3(), glm::vec3 rotation = glm::vec3());
+		void createInstance(uint32_t meshId, uint32_t materialId, glm::vec3 position = glm::vec3(), glm::vec3 rotation = glm::vec3());
 		void build();
 		inline AccelerationStructure getTlas() { return tlasAccel; }
 		inline std::unique_ptr<Core::Buffer>& getSceneInfoBuffer() { return sceneInfoBuffer; }

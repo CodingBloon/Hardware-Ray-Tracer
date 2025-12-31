@@ -71,6 +71,10 @@ void RayTracing::Scene::loadModel(std::string path) {
 	meshes.push_back(Mesh{ device, vertices, indices });
 }
 
+void RayTracing::Scene::createInstance(uint32_t meshId, uint32_t materialId, glm::vec3 position, glm::vec3 rotation) {
+	instances.push_back(MeshInstance(meshId, materialId, position, rotation));
+}
+
 
 void RayTracing::Scene::build() {
 	BUILD("SCENE", 0, 6, "Creating Bottom Level Acceleration Structure...");
@@ -134,9 +138,24 @@ void RayTracing::Scene::createTopAS() {
 			0.0f, 0.0f, 1.0f, 0.0f };
 
 	std::vector<VkAccelerationStructureInstanceKHR> tlasInstances;
-	tlasInstances.reserve(blasAccel.size());
+	//tlasInstances.reserve(blasAccel.size());
+	tlasInstances.reserve(instances.size());
 
-	for (uint32_t i = 0; i < blasAccel.size(); i++) {
+	for (uint32_t i = 0; i < instances.size(); i++) {
+		uint32_t meshId = instances[i].getMeshId();
+
+		VkAccelerationStructureInstanceKHR asInstance{
+			.transform = instances[i].getTransformation(),
+			.instanceCustomIndex = meshId,
+			.mask = 0xFF,
+			.instanceShaderBindingTableRecordOffset = 0,
+			.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_CULL_DISABLE_BIT_NV,
+			.accelerationStructureReference = blasAccel[meshId].address,
+		};
+		tlasInstances.emplace_back(asInstance);
+	}
+
+	/*for (uint32_t i = 0; i < blasAccel.size(); i++) {
 		VkAccelerationStructureInstanceKHR asInstance{};
 		asInstance.transform = transformMatrix;
 		asInstance.instanceCustomIndex = i;
@@ -145,7 +164,7 @@ void RayTracing::Scene::createTopAS() {
 		asInstance.mask = 0xFF;
 		asInstance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_CULL_DISABLE_BIT_NV,
 			tlasInstances.emplace_back(asInstance);
-	}
+	}*/
 
 	VkCommandBuffer cmd = device.beginSingleTimeCommands();
 
@@ -206,7 +225,7 @@ void RayTracing::Scene::createTopAS() {
 			.geometry = {.instances = geometryInstances }
 		};
 
-		asBuildRangeInfo = { .primitiveCount = static_cast<uint32_t>(meshes.size()) };
+		asBuildRangeInfo = { .primitiveCount = static_cast<uint32_t>(instances.size()) };
 
 		createAccelerationStructure(VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR, tlasAccel, asGeometry, asBuildRangeInfo, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
 	}
@@ -269,23 +288,45 @@ void RayTracing::Scene::createAccelerationStructure(VkAccelerationStructureTypeK
 }
 
 void RayTracing::Scene::createMaterials() {
-	float roughness = 1.f;
+	std::vector<Material> materials;
+
+	{
+		float roughness = 1.0f;
+		Material material{
+			.color = {0.0f, 1.0f, 0.0},
+			.metallic = 0.f,
+			.roughness = roughness == 0.0f ? ROUGHNESS_ZERO : roughness
+		};
+		materials.push_back(material);
+	}
+	
+	{
+		float roughness = 1.0f;
+		Material material{
+			.color = {0.0f, 0.0f, 1.0f},
+			.metallic = 0.f,
+			.roughness = roughness == 0.0f ? ROUGHNESS_ZERO : roughness
+		};
+		materials.push_back(material);
+	}
+
+	/*float roughness = 1.f;
 	Material material{
 		.color = {0.f, 1.f, 0.f},
 		.metallic = 0.f,
 		.roughness = roughness == 0.0f ? ROUGHNESS_ZERO : roughness
-	};
+	};*/
 
 	materialBuffer = std::make_unique<Core::Buffer>(
-		device, sizeof(Material), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT
+		device,  materials.size() * sizeof(Material), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT
 	);
 
-	stageInformation(&material, sizeof(Material), materialBuffer->getBuffer());
+	stageInformation(materials.data(), materials.size() * sizeof(Material), materialBuffer->getBuffer());
 }
 
 void RayTracing::Scene::createLights() {
 	Light light{
-		.pos = {2.5f, 2.5f, 2.f},
+		.pos = {0.f, 0.f, 0.f},
 		.color = {1.f, 1.f, 1.f},
 		.intensity = 10.f
 	};
@@ -299,14 +340,24 @@ void RayTracing::Scene::createLights() {
 
 void RayTracing::Scene::createSceneInformation() {
 	std::vector<InstanceInfo> instanceInfo;
-	instanceInfo.resize(meshes.size());
+	instanceInfo.resize(instances.size());
 
-	for (uint32_t i = 0; i < meshes.size(); i++) {
+	for (uint32_t i = 0; i < instances.size(); i++) {
+		uint32_t meshId = instances[i].getMeshId();
+		
+		instanceInfo[i] = {
+			.vertexAddress = meshes[meshId].vertexBuffer->getAddress(),
+			.indexAddress = meshes[meshId].indexBuffer->getAddress(),
+			.materialId = instances[i].getMaterialId()
+		};
+	}
+
+	/*for (uint32_t i = 0; i < meshes.size(); i++) {
 		instanceInfo[i] = {
 			.vertexAddress = meshes[i].vertexBuffer->getAddress(),
 			.indexAddress = meshes[i].indexBuffer->getAddress()
 		};
-	}
+	}*/
 
 	instanceBuffer = std::make_unique<Core::Buffer>(
 		device, sizeof(InstanceInfo) * instanceInfo.size(), VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT

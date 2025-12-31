@@ -54,6 +54,11 @@ int3 getTriangleIndices(uint64_t bufferAddress, int primitiveID) {
     return indices[primitiveID];
 }
 
+uint32_t getMaterialIndex(uint64_t bufferAddress, uint64_t byteStride, uint instance) {
+    uint32_t* ptr = (uint32_t*)(bufferAddress + byteStride * instance + 16);
+    return ptr[0];
+}
+
 __generic<T : IFloat> T getTriangleAttribute(uint64_t bufferAddress, uint64_t offset, uint64_t byteStride, uint3 attributeIndex, float3 barycentrics) {
 
     T attr0 = getAttribute<T>(bufferAddress, offset, byteStride, attributeIndex.x);
@@ -158,7 +163,8 @@ void rchitMain(inout HitPayload payload, in BuiltInTriangleIntersectionAttribute
     uint64_t indexBuffer = getIndexBuffer(meshID, sceneInfo.instanceBuffer, sceneInfo.instanceByteStride);
     uint64_t vertexBuffer = getVertexBuffer(meshID, sceneInfo.instanceBuffer, sceneInfo.instanceByteStride);
 
-    int materialIndex = 0;
+    int materialIndex = getMaterialIndex(sceneInfo.instanceBuffer, sceneInfo.instanceByteStride, instanceID);
+    //int materialIndex = 1;//getMaterialIndex(sceneInfo.materialBuffer, sceneInfo.materialByteStride, instanceID);
     int3 indices = getTriangleIndices(indexBuffer, triID);
 
     float3 pos = getTriangleAttribute<float3>(vertexBuffer, 0, sceneInfo.vertexByteStride, indices, barycentrics);
