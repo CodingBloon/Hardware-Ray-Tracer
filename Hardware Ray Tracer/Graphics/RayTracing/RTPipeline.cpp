@@ -155,6 +155,7 @@ void RayTracing::Pipeline::createPipeline() {
 	enum StageIndices {
 		eRayGen,
 		eMiss,
+		eMissShadow,
 		eClosestHit,
 		eShaderGroupCount
 	};
@@ -172,6 +173,10 @@ void RayTracing::Pipeline::createPipeline() {
 	stages[eMiss].pName = "rmissMain";
 	stages[eMiss].stage = VK_SHADER_STAGE_MISS_BIT_KHR;
 	stages[eMiss].module = rtShaderModule;
+
+	stages[eMissShadow].pName = "rmissShadowMain";
+	stages[eMissShadow].stage = VK_SHADER_STAGE_MISS_BIT_KHR;
+	stages[eMissShadow].module = rtShaderModule;
 
 	stages[eClosestHit].pName = "rchitMain";
 	stages[eClosestHit].stage = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
@@ -193,6 +198,10 @@ void RayTracing::Pipeline::createPipeline() {
 	group.generalShader = eMiss;
 	shader_groups.push_back(group);
 
+	group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
+	group.generalShader = eMissShadow;
+	shader_groups.push_back(group);
+
 	group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
 	group.generalShader = VK_SHADER_UNUSED_KHR;
 	group.closestHitShader = eClosestHit;
@@ -205,7 +214,7 @@ void RayTracing::Pipeline::createPipeline() {
 	rtPipelineInfo.pStages = stages.data();
 	rtPipelineInfo.groupCount = static_cast<uint32_t>(shader_groups.size());
 	rtPipelineInfo.pGroups = shader_groups.data();
-	rtPipelineInfo.maxPipelineRayRecursionDepth = std::max(3U, device.getRTProperties()->maxRayRecursionDepth);
+	rtPipelineInfo.maxPipelineRayRecursionDepth = std::max(MAX_DEPTH, device.getRTProperties()->maxRayRecursionDepth);
 	rtPipelineInfo.layout = graphicsPipelineLayout;
 
 	vkCreateRayTracingPipelinesKHR(device.getDevice(), {}, {}, 1, &rtPipelineInfo, nullptr, &graphicsPipeline);
@@ -228,12 +237,14 @@ void RayTracing::Pipeline::createShaderBindingTable(const VkRayTracingPipelineCr
 	auto     alignUp = [](uint32_t size, uint32_t alignment) { return (size + alignment - 1) & ~(alignment - 1); };
 	uint32_t raygenSize = alignUp(handleSize, handleAlignment);
 	uint32_t missSize = alignUp(handleSize, handleAlignment);
+	uint32_t shadowMissSize = alignUp(handleSize, handleAlignment);
 	uint32_t hitSize = alignUp(handleSize, handleAlignment);
 	uint32_t callableSize = 0; //unused
 
 	uint32_t raygenOffset = 0;
 	uint32_t missOffset = alignUp(raygenSize, baseAlignment);
-	uint32_t hitOffset = alignUp(missOffset + missSize, baseAlignment);
+	uint32_t shadowMissOffset = alignUp(missOffset + missSize, baseAlignment);
+	uint32_t hitOffset = alignUp(shadowMissOffset + shadowMissSize, baseAlignment);
 	uint32_t callableOffset = alignUp(hitOffset + hitSize, baseAlignment);
 
 	size_t bufferSize = callableOffset + callableSize;
@@ -257,7 +268,9 @@ void RayTracing::Pipeline::createShaderBindingTable(const VkRayTracingPipelineCr
 	missRegion.size = missSize;
 	missRegion.stride = missSize;
 
-	memcpy(pData + hitOffset, shaderHandles.data() + 2 * handleSize, handleSize);
+	memcpy(pData + shadowMissOffset, shaderHandles.data() + 2 * handleSize, handleSize);
+
+	memcpy(pData + hitOffset, shaderHandles.data() + 3 * handleSize, handleSize);
 	hitRegion.deviceAddress = sbtBuffer->getAddress() + hitOffset;
 	hitRegion.size = hitSize;
 	hitRegion.stride = hitSize;

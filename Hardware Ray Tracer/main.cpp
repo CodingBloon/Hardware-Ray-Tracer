@@ -1,7 +1,13 @@
 #include "Graphics/RayTracing/RTApp.h"
 
 int main() {
-	RayTracing::RTApp app;
 
-	app.run();
+	try {
+		RayTracing::RTApp app;
+
+		app.run();
+	} catch (const std::runtime_error& e) {
+		system("pause");
+		return EXIT_FAILURE;
+	}
 }

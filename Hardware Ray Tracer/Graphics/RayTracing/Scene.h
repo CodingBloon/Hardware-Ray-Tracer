@@ -51,13 +51,22 @@ namespace RayTracing {
 		float color[3];
 		float metallic;
 		float roughness;
+
+		float emissionColor[3];
+		float emissionStrength;
+	};
+
+	enum LightType : uint8_t {
+		POINT,
+		SPOT,
+		DIRECTIONAL
 	};
 
 	struct Light {
 		float pos[3];
 		float color[3];
 		float intensity;
-		uint32_t type;
+		LightType type;
 	};
 
 	struct AccelerationStructure {
@@ -73,6 +82,22 @@ namespace RayTracing {
 		uint32_t materialId; //id of material
 	};
 
+	struct SkyInfo {
+		float skyColor[3];
+		float horizonColor[3];
+		float groundColor[3];
+		float sunDirection[3];
+		float upDirection[3];
+
+		float brightness;
+		float horizonSize;
+		float angularSize;
+		float glowIntensity;
+		float glowSharpness;
+		float glowSize;
+		float lightRadiance;
+	};
+
 	struct SceneBufferInfo {
 		uint64_t mBuf; //address of material buffer
 		uint64_t mStride; //byte stride of material
@@ -85,6 +110,9 @@ namespace RayTracing {
 
 		uint64_t sBuf; //address of scene buffer
 		uint64_t sStride; //byte stride of scene info
+
+		uint64_t skyBuf;
+		uint64_t skyStride;
 	};
 
 	class Scene {
@@ -93,7 +121,9 @@ namespace RayTracing {
 		~Scene();
 
 		void loadModel(std::string path);
-		void createInstance(uint32_t meshId, uint32_t materialId, glm::vec3 position = glm::vec3(), glm::vec3 rotation = glm::vec3());
+		void createInstance(uint32_t meshId, uint32_t materialId, glm::vec3 position = glm::vec3(), glm::vec3 rotation = glm::vec3(), glm::vec3 scale = glm::vec3(1, 1, 1));
+		void createMaterial(glm::vec3 color, float metallic = 0.f, float roughness = 1.f, glm::vec3 emissiveColor = glm::vec3(), float emissionStrength = 0.f);
+		void createLight(glm::vec3 position, glm::vec3 color, float intensity);
 		void build();
 		inline AccelerationStructure getTlas() { return tlasAccel; }
 		inline std::unique_ptr<Core::Buffer>& getSceneInfoBuffer() { return sceneInfoBuffer; }
@@ -114,6 +144,7 @@ namespace RayTracing {
 
 		void createMaterials();
 		void createLights();
+		void createSky();
 		void createSceneInformation();
 		void createSceneInfoBuffer();
 
@@ -123,6 +154,8 @@ namespace RayTracing {
 
 		std::vector<Mesh> meshes;
 		std::vector<MeshInstance> instances;
+		std::vector<Material> materials;
+		std::vector<Light> lights;
 		std::vector<AccelerationStructure> blasAccel;
 		AccelerationStructure tlasAccel;
 
@@ -131,6 +164,7 @@ namespace RayTracing {
 		std::unique_ptr<Core::Buffer> vertexBuffer;
 		std::unique_ptr<Core::Buffer> indexBuffer;
 		std::unique_ptr<Core::Buffer> instanceBuffer;
+		std::unique_ptr<Core::Buffer> skyBuffer;
 		std::unique_ptr<Core::Buffer> sceneInfoBuffer;
 	};
 

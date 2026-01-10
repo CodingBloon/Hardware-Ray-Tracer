@@ -12,6 +12,8 @@
 #define vkGetRayTracingShaderGroupHandlesKHR reinterpret_cast<PFN_vkGetRayTracingShaderGroupHandlesKHR>(vkGetDeviceProcAddr(device.getDevice(), "vkGetRayTracingShaderGroupHandlesKHR"))
 #define vkCmdTraceRaysKHR reinterpret_cast<PFN_vkCmdTraceRaysKHR>(vkGetDeviceProcAddr(device.getDevice(), "vkCmdTraceRaysKHR"))
 
+#define MAX_DEPTH 10U
+
 namespace RayTracing {
 	struct StorageImage {
 		VkImage image;
@@ -22,6 +24,8 @@ namespace RayTracing {
 	struct Uniform {
 		glm::mat4 viewInverse;
 		glm::mat4 projInverse;
+		uint32_t frame;
+		uint32_t depthMax;
 	};
 
 	class Pipeline {

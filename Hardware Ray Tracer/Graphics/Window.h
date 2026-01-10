@@ -8,7 +8,7 @@ namespace Core {
 	class Window {
 
 	public:
-		Window(int width, int height, std::string title);
+		Window(int width, int height, std::string title, bool useFullscreen);
 		~Window();
 
 		bool shouldClose() { return glfwWindowShouldClose(window); }
@@ -19,11 +19,13 @@ namespace Core {
 		GLFWwindow* getGLFWWindow() { return window; }
 		void setWindowTitle(std::string title) { this->title = title; glfwSetWindowTitle(window, title.c_str()); }
 	private:
+		static void frameBufferResizeCallback(GLFWwindow* window, int width, int heigth);
 		void initWindow();
 
 	private:
 		int height, width;
 		std::string title;
+		bool useFullscreen;
 
 		GLFWwindow* window;
 		bool frameBufferResized = false;

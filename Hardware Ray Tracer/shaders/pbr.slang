@@ -1,7 +1,8 @@
 #define PI 3.1415926535897F
+#define PI_2 6.2831853071795F
 #define N_1_PI 0.3183098861837F
 
-struct Material {
+struct BsdfMaterial {
     float3 baseColor = float3(1.0f, 1.0f, 1.0f);
     float2 roughness = float2(1.0f, 1.0f);
     float metallic = 1.0f;
@@ -81,7 +82,7 @@ float ggx_smith_shadow_mask(out float G1, out float G2, const float3 k1, const f
     return G1 * G2;
 }
 
-void bsdfEvaluateSimple(inout BsdfEvaluateData data, Material mat)
+void bsdfEvaluateSimple(inout BsdfEvaluateData data, BsdfMaterial mat)
 {
     // Specular reflection
     float3 H = normalize(data.k1 + data.k2);
@@ -130,7 +131,7 @@ float3 pbrMetallicRoughness(float3 albedo, float metallic, float roughness, floa
     data.k2 = L;
     data.xi = float3(0.0f);
 
-    Material mat;
+    BsdfMaterial mat;
     mat.baseColor = albedo;
     mat.metallic = metallic;
     mat.roughness = float2(roughness, roughness);

@@ -28,7 +28,7 @@ namespace std {
 	};
 }
 
-Core::App::App() : window({800, 600, "Ray Tracing | DLSS 3.5"}), device(&window), swapChain(std::make_unique<SwapChain>(device, window.getExtent())) {
+Core::App::App() : window({800, 600, "Ray Tracing | DLSS 3.5", false}), device(&window), swapChain(std::make_unique<SwapChain>(device, window.getExtent())) {
 
 	createLight();
 	createMaterial();

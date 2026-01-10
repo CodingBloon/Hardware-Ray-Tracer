@@ -35,8 +35,10 @@ void RayTracing::Scene::loadModel(std::string path) {
 	std::vector<tinyobj::material_t> materials;
 	std::string err;
 
-	if (!tinyobj::LoadObj(&attributes, &shapes, &materials, &err, path.c_str()))
+	if (!tinyobj::LoadObj(&attributes, &shapes, &materials, &err, path.c_str())) {
+		std::cout << "[ERROR] Scene: " << err << std::endl;
 		throw std::runtime_error(err);
+	}
 
 	std::unordered_map<Vertex, uint32_t> uniqueVertices{};
 	for (const auto& shape : shapes) {
@@ -71,28 +73,52 @@ void RayTracing::Scene::loadModel(std::string path) {
 	meshes.push_back(Mesh{ device, vertices, indices });
 }
 
-void RayTracing::Scene::createInstance(uint32_t meshId, uint32_t materialId, glm::vec3 position, glm::vec3 rotation) {
-	instances.push_back(MeshInstance(meshId, materialId, position, rotation));
+void RayTracing::Scene::createInstance(uint32_t meshId, uint32_t materialId, glm::vec3 position, glm::vec3 rotation, glm::vec3 scale) {
+	instances.push_back(MeshInstance(meshId, materialId, position, rotation, scale));
+}
+
+void RayTracing::Scene::createMaterial(glm::vec3 color, float metallic, float roughness, glm::vec3 emissiveColor, float emissionStrength) {
+	materials.push_back(Material{
+		{color.x, color.y, color.z},
+		metallic,
+		roughness,
+		{emissiveColor.x, emissiveColor.y, emissiveColor.z},
+		emissionStrength
+	});
+}
+
+void RayTracing::Scene::createLight(glm::vec3 position, glm::vec3 color, float intensity) {
+	lights.push_back(
+		Light{
+			{position.x, position.y, position.z},
+			{color.x, color.y, color.z},
+			intensity,
+			LightType::POINT
+		}
+	);
 }
 
 
 void RayTracing::Scene::build() {
-	BUILD("SCENE", 0, 6, "Creating Bottom Level Acceleration Structure...");
+	BUILD("SCENE", 0, 7, "Creating Bottom Level Acceleration Structure...");
 	createBottomAS();
-	BUILD("SCENE", 1, 6, "Creating TOP Level Acceleration Structure...");
+	BUILD("SCENE", 1, 7, "Creating TOP Level Acceleration Structure...");
 	createTopAS();
 
-	BUILD("SCENE", 2, 6, "Creating materials...");
+	BUILD("SCENE", 2, 7, "Creating materials...");
 	createMaterials();
-	BUILD("SCENE", 3, 6, "Creating lights...");
+	BUILD("SCENE", 3, 7, "Creating lights...");
 	createLights();
 
-	BUILD("SCENE", 4, 6, "Creating scene information...");
+	BUILD("SCENE", 4, 7, "Creating Sky...");
+	createSky();
+
+	BUILD("SCENE", 5, 7, "Creating scene information...");
 	createSceneInformation();
-	BUILD("SCENE", 5, 6, "Creating scene information buffer...");
+	BUILD("SCENE", 6, 7, "Creating scene information buffer...");
 	createSceneInfoBuffer();
 
-	BUILD("SCENE", 6, 6, "Scene created!");
+	BUILD("SCENE", 7, 7, "Scene created!");
 }
 
 void RayTracing::Scene::primitiveToGeometry(const Mesh& mesh, VkAccelerationStructureGeometryKHR& geometry, VkAccelerationStructureBuildRangeInfoKHR& rangeInfo) {
@@ -288,7 +314,7 @@ void RayTracing::Scene::createAccelerationStructure(VkAccelerationStructureTypeK
 }
 
 void RayTracing::Scene::createMaterials() {
-	std::vector<Material> materials;
+	/*std::vector<Material> materials;
 
 	{
 		float roughness = 1.0f;
@@ -304,38 +330,69 @@ void RayTracing::Scene::createMaterials() {
 		float roughness = 1.0f;
 		Material material{
 			.color = {0.0f, 0.0f, 1.0f},
-			.metallic = 0.f,
+			.metallic = 0.99f,
 			.roughness = roughness == 0.0f ? ROUGHNESS_ZERO : roughness
 		};
 		materials.push_back(material);
-	}
+	}*/
 
-	/*float roughness = 1.f;
-	Material material{
-		.color = {0.f, 1.f, 0.f},
-		.metallic = 0.f,
-		.roughness = roughness == 0.0f ? ROUGHNESS_ZERO : roughness
-	};*/
+	uint64_t size = materials.size() * sizeof(Material);
 
 	materialBuffer = std::make_unique<Core::Buffer>(
-		device,  materials.size() * sizeof(Material), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT
+		device, size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT
 	);
 
-	stageInformation(materials.data(), materials.size() * sizeof(Material), materialBuffer->getBuffer());
+	stageInformation(materials.data(), size, materialBuffer->getBuffer());
 }
 
 void RayTracing::Scene::createLights() {
-	Light light{
-		.pos = {0.f, 0.f, 0.f},
-		.color = {1.f, 1.f, 1.f},
-		.intensity = 10.f
-	};
+	uint64_t size = lights.size() * sizeof(Light);
 
 	lightBuffer = std::make_unique<Core::Buffer>(
-		device, sizeof(Light), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT
+		device, size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT
 	);
 
-	stageInformation(&light, sizeof(Light), lightBuffer->getBuffer());
+	stageInformation(lights.data(), size, lightBuffer->getBuffer());
+}
+
+void RayTracing::Scene::createSky() {
+
+	/*
+		float skyColor[3];
+		float horizonColor[3];
+		float groundColor[3];
+		float sunDirection[3];
+		float upDirection[3];
+
+		float brightness;
+		float horizonSize;
+		float angularSize;
+		float glowIntensity;
+		float glowSharpness;
+		float glowSize;
+	*/
+
+	SkyInfo info{
+		.skyColor = {0.17f, 0.24f, 0.31f},
+		.horizonColor = {1.f, 0.5f, 0.31f},
+		.groundColor = {0.1f, 0.06f, 0.04f},
+		.sunDirection = {0.9f, -0.1f, 0.0f},
+		.upDirection = {0.f, -1.f, 0.f},
+
+		.brightness = 0.8f,
+		.horizonSize = 0.5f,
+		.angularSize = 0.08f,
+		.glowIntensity = 2.5f,
+		.glowSharpness = 0.2f,
+		.glowSize = 0.2f,
+		.lightRadiance = 0.7f
+	};
+
+	skyBuffer = std::make_unique<Core::Buffer>(
+		device, sizeof(SkyInfo), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+	);
+
+	stageInformation(&info, sizeof(SkyInfo), skyBuffer->getBuffer());
 }
 
 void RayTracing::Scene::createSceneInformation() {
@@ -367,18 +424,23 @@ void RayTracing::Scene::createSceneInformation() {
 }
 
 void RayTracing::Scene::createSceneInfoBuffer() {
+	std::cout << "Lights: " << lights.size() << std::endl;
+
 	SceneBufferInfo info{
 		.mBuf = materialBuffer->getAddress(),
 		.mStride = sizeof(Material),
 		
 		.lBuf = lightBuffer->getAddress(),
 		.lStride = sizeof(Light),
-		.lCount = 1,
+		.lCount = lights.size(),
 
 		.vStride = sizeof(Vertex),
 
 		.sBuf = instanceBuffer->getAddress(),
-		.sStride = sizeof(InstanceInfo)
+		.sStride = sizeof(InstanceInfo),
+
+		.skyBuf = skyBuffer->getAddress(),
+		.skyStride = sizeof(SkyInfo)
 	};
 
 	sceneInfoBuffer = std::make_unique<Core::Buffer>(

@@ -99,7 +99,6 @@ void Core::Device::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkM
 	bufferInfo.usage = usage;
 	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-
 	if (vkCreateBuffer(device_, &bufferInfo, nullptr, buffer) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create vertex buffer!");
 	}
@@ -301,8 +300,17 @@ void Core::Device::pickPhysicalDevice() {
 		}
 	}
 
-	if (physicalDevice == VK_NULL_HANDLE)
+	if (physicalDevice == VK_NULL_HANDLE) {
+		std::cout << "[ERROR] Setup: Found " << deviceCount << " GPU(s), but none meet the requirements!" << std::endl;
+		for (const auto& device : devices) {
+			VkPhysicalDeviceProperties prop;
+			vkGetPhysicalDeviceProperties(device, &prop);
+			std::cout << "[ERROR] Setup: Device " << prop.deviceName << " rejected:" << std::endl <<"		- Missing Ray Tracing Support (VK_KHR_ray_tracing_pipeline)" << std::endl;
+		}
+
+		std::cout << "[FATAL] Setup: Failed to initialize graphics hardware. Exiting..." << std::endl;
 		throw std::runtime_error("No suitable GPU found!");
+	}
 
 	vkGetPhysicalDeviceProperties(physicalDevice, &properties);
 #ifdef _DEBUG
@@ -511,23 +519,23 @@ void Core::Device::hasGflwRequiredInstanceExtensions() {
 	std::vector<VkExtensionProperties> extensions(extensionCount);
 	vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensions.data());
 
-#ifdef _DEBUG
-	std::cout << "available extensions:" << std::endl;
-#endif // _DEBUG
+//#ifdef _DEBUG
+//	std::cout << "available extensions:" << std::endl;
+//#endif // _DEBUG
 	std::unordered_set<std::string> available;
 	for (const auto& extension : extensions) {
-#ifdef _DEBUG
-		std::cout << "\t" << extension.extensionName << std::endl;
-#endif // _DEBUG
+//#ifdef _DEBUG
+//		std::cout << "\t" << extension.extensionName << std::endl;
+//#endif // _DEBUG
 		available.insert(extension.extensionName);
 	}
 
 	std::cout << "required extensions:" << std::endl;
 	auto requiredExtensions = getRequiredExtensions();
 	for (const auto& required : requiredExtensions) {
-#ifdef _DEBUG
-		std::cout << "\t" << required << std::endl;
-#endif // _DEBUG
+//#ifdef _DEBUG
+//		std::cout << "\t" << required << std::endl;
+//#endif // _DEBUG
 		if (available.find(required) == available.end()) {
 			throw std::runtime_error("Missing required glfw extension");
 		}

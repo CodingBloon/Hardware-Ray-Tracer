@@ -1,9 +1,18 @@
 #include "RTApp.h"
 
-RayTracing::RTApp::RTApp() : window({800, 600, "Ray Tracer | DLSS 4"}), device(&window), scene(device) {
-	scene.loadModel("models/Cube.obj");
-	scene.createInstance(0, 0, glm::vec3(0.0f, 2.5f, 0.f));
-	scene.createInstance(0, 1, glm::vec3(0.0f, -2.5f, 0.0f));
+RayTracing::RTApp::RTApp() : window({800, 600, "Ray Tracer | DLSS 4", false}), device(&window), scene(device) {
+	scene.loadModel("models/Plane.obj");
+	
+	scene.createMaterial(glm::vec3(1.f, 1.f, 1.f));
+	scene.createMaterial(glm::vec3(0.f, 0.f, 1.f));
+	
+	scene.createLight(glm::vec3(1.f, 0.f, 0.f), glm::vec3(0.0f, 0.0f, 1.0f), 2.0f);
+	scene.createLight(glm::vec3(-1.f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), 2.0f);
+	scene.createLight(glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(1.0f, 0.0f, 0.0f), 2.0f);
+
+	scene.createInstance(0, 0, glm::vec3(0.f, -1.f, 0.f), glm::vec3(), glm::vec3(1.0f, 1.0f, 1.0f));
+	scene.createInstance(0, 0, glm::vec3(0.f, 1.f, 0.f), glm::vec3(), glm::vec3(4.0f, 1.0f, 4.0f));
+
 	scene.build();
 
 	recreateSwapChain();
@@ -34,7 +43,9 @@ void RayTracing::RTApp::run() {
 		//update uniform buffer
 		Uniform uniform{
 			.viewInverse = glm::inverse(glm::transpose(camera.getView())),
-			.projInverse = glm::inverse(glm::transpose(camera.getProjection()))
+			.projInverse = glm::inverse(glm::transpose(camera.getProjection())),
+			.frame = imageIndex,
+			.depthMax = 3
 		};
 
 		rtPipeline->writeToUniformBuffer(&uniform, frameIndex);
@@ -203,12 +214,12 @@ void RayTracing::RTApp::endFrame() {
 void RayTracing::RTApp::recreateSwapChain() {
 	auto extent = window.getExtent();
 
+	std::cout << "Extent: " << extent.width << "; " << extent.height << std::endl;
+
 	while (extent.width == 0 || extent.height == 0) {
 		extent = window.getExtent();
 		glfwWaitEvents();
 	}
-
-	vkDeviceWaitIdle(device.getDevice());
 
 	if (swapChain == nullptr)
 		swapChain = std::make_unique<Core::SwapChain>(device, window.getExtent());
@@ -218,4 +229,18 @@ void RayTracing::RTApp::recreateSwapChain() {
 
 		if (!swapChain->compareSwapFormats(*oldSwapChain.get())) throw std::runtime_error("Swap chain format changed!");
 	}
+}
+
+void RayTracing::RTApp::recreateRenderResources() {
+	auto extent = window.getExtent();
+
+	while (extent.width == 0 || extent.height == 0) {
+		extent = window.getExtent();
+		glfwWaitEvents();
+	}
+
+	vkDeviceWaitIdle(device.getDevice());
+
+	recreateSwapChain();
+	rtPipeline->rebuildRenderOutput(swapChain->getSwapChainImageFormat(), swapChain->getSwapChainExtent());
 }

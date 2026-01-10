@@ -25,6 +25,7 @@ namespace RayTracing {
 		void endFrame();
 
 		void recreateSwapChain();
+		void recreateRenderResources();
 
 	private:
 		Core::Window window;

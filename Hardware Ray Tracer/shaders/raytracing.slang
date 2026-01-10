@@ -1,13 +1,14 @@
-#define MISS_DEPTH 1000
-#define INFINITE 1e32F
-#define POINT_LIGHT 0
-#define DIR_LIGHT 1
-
 #include "pbr.slang"
+#include "random.slang"
+#include "objects.slang"
+#include "light.slang"
+#include "constants.slang"
 
 struct UniformBuffer {
     float4x4 viewInverse;
     float4x4 projInverse;
+    uint32_t frame;
+    uint32_t depthMax;
 };
 
 struct SceneInfo {
@@ -22,14 +23,9 @@ struct SceneInfo {
 
     uint64_t instanceBuffer;
     uint64_t instanceByteStride;
-};
 
-struct Light {
-    float3 pos;
-    float3 color;
-    float3 direction;
-    float intensity;
-    uint8_t type;
+    uint64_t skyBuffer;
+    uint64_t skyStride;
 };
 
 RaytracingAccelerationStructure topLevelAS;
@@ -41,7 +37,14 @@ struct HitPayload {
     float3 color;
     float weight;
     int depth;
+
+    float3 rayOrigin;
+    float3 rayDirection;
 };
+
+struct ShadowPayload {
+    int depth;
+}
 
 __generic<T : IFloat> T getAttribute(uint64_t bufferAddress, uint64_t offset, uint64_t byteStride, uint attributeIndex) {
     T *ptr = (T *)(bufferAddress + offset + attributeIndex * byteStride);
@@ -77,52 +80,53 @@ uint64_t getVertexBuffer(uint64_t id, uint64_t bufferAddress, uint64_t byteStrid
     return ptr[0];
 }
 
-Light processLight(uint64_t bufferAddress, uint64_t byteStride, uint lightID, float3 worldPos) {
-    Light light;
-    {
-        float3 *ptr = (float3 *)(bufferAddress + 0 + byteStride * lightID);
-        light.pos = ptr[0];
-    }
-    {
-        float3 *ptr = (float3 *)(bufferAddress + 12 + byteStride * lightID);
-        light.color = ptr[0];
-    }
-    {
-        float *ptr = (float *)(bufferAddress + 24 + byteStride * lightID);
-        light.intensity = ptr[0];
-    }
-    {
-        uint8_t *ptr = (uint8_t *)(bufferAddress + 28 + byteStride * lightID);
-        light.type = ptr[0];
-    }
-
-    if (light.type == POINT_LIGHT) {
-        light.direction = light.pos - worldPos;
-        float d = length(light.direction);
-        light.intensity /= (d * d);
-        return light;
-    }
-
-    return light;
-}
-
+/*
+ * Checks if a point can "see" the light and therefore should receive direct illumination
+ * TODO: Add multiple shadow rays to better estimate the shadow factor
+ */
 float testShadow(float3 worldPos, float3 worldNormal, float3 lightDirection, bool directional) {
     RayDesc shadowRay;
-    shadowRay.Origin = worldPos + worldNormal * 0.001;
+    shadowRay.Origin = worldPos + worldNormal * 0.0001;
     shadowRay.Direction = normalize(lightDirection);
     shadowRay.TMin = 0.001;
     shadowRay.TMax = directional ? INFINITE : length(lightDirection);
 
-    HitPayload shadowPayload;
+    ShadowPayload shadowPayload;
     shadowPayload.depth = 0;
 
-    TraceRay(topLevelAS, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER, 0xff, 0, 0, 0, shadowRay, shadowPayload);
+    //uses shadow miss shader to reduce the payload and computational cost
+    TraceRay(topLevelAS, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER, 0xff, 0, 0, 2, shadowRay, shadowPayload);
 
     return shadowPayload.depth != MISS_DEPTH ? 0.0 : 1.0;
 }
 
-float3 pbrMaterial(float3 albedo, float metallic, float roughness, float3 N, float3 V, float3 L) {
-    return albedo;
+/*
+ * Currently light calculations only accept one light source
+ * Later a light source will cast multiple rays to better determine the illumination of a pixel
+ */
+#define MAX_LIGHT_SAMPLES 2 //number of lights the program samples per sample per pixel (more light samples result in better lightning quality but increases the computational cost)
+float3 calculateColor(Material mat, float3 normal, float3 view, float3 worldPos) {
+    uint maxIndex = (uint)(sceneInfo.numLights - 1U);
+    uint seed = uniformBuffer.frame;
+    uint numLights = (uint) sceneInfo.numLights;
+    float3 accumulatedColor = float3(0, 0, 0);
+    float lightFactor = 1 / sceneInfo.numLights;
+    
+    
+    /*
+     * Sample random light sources
+     * This will later be replaced with an more advanced algorithm like light bounding volume hierarchy or ReSTIR
+     */
+    for (uint i = 0; i < numLights; i++) {
+        uint randomIndex = srand(seed + i, maxIndex); //calculate random light index
+        Light light = processLight(sceneInfo.lightBuffer, sceneInfo.lightByteStride, i, worldPos); // get light information
+        float3 L = normalize(light.direction);
+        float3 color = pbrMetallicRoughness(mat.color, mat.metallic, mat.roughness, normal, view, L);
+        float shadowFactor = testShadow(worldPos, normal, light.direction, false);
+        accumulatedColor += color * light.color * light.intensity * shadowFactor;
+    }
+
+    return accumulatedColor;
 }
 
 [shader("raygeneration")]
@@ -130,6 +134,10 @@ void rgenMain() {
     float2 launchID = (float2)DispatchRaysIndex().xy;
     float2 launchSize = (float2)DispatchRaysDimensions().xy;
     const uint rayFlags = 0;
+
+    uint seed = hash(uint3(uint2(launchID.xy), uniformBuffer.frame));
+    float2 subpixel_jitter = uniformBuffer.frame == 0 ? float2(0.5f, 0.5f) : float2(rand(seed), rand(seed));
+    const float2 pixelCenter = launchID + subpixel_jitter;
 
     const float2 clipCoords = launchID / launchSize * 2.0 - 1.0;
     const float4 viewCoords = mul(float4(clipCoords, 1.0, 1.0), uniformBuffer.projInverse);
@@ -145,10 +153,11 @@ void rgenMain() {
     payload.weight = 1;
     payload.depth = 0;
 
+    /*
+     * The program uses hardware recursion to calculate indirect illumination and reflections
+     */
     TraceRay(topLevelAS, rayFlags, 0xff, 0, 0, 0, ray, payload);
-
     float3 color = payload.color;
-
     outImage[int2(launchID)] = float4(color, 1.0);
 }
 
@@ -164,41 +173,36 @@ void rchitMain(inout HitPayload payload, in BuiltInTriangleIntersectionAttribute
     uint64_t vertexBuffer = getVertexBuffer(meshID, sceneInfo.instanceBuffer, sceneInfo.instanceByteStride);
 
     int materialIndex = getMaterialIndex(sceneInfo.instanceBuffer, sceneInfo.instanceByteStride, instanceID);
-    //int materialIndex = 1;//getMaterialIndex(sceneInfo.materialBuffer, sceneInfo.materialByteStride, instanceID);
     int3 indices = getTriangleIndices(indexBuffer, triID);
+    float3 pos;
+    float3 normal;
+    float2 uvWorld;
 
-    float3 pos = getTriangleAttribute<float3>(vertexBuffer, 0, sceneInfo.vertexByteStride, indices, barycentrics);
-    float3 normal = getTriangleAttribute<float3>(vertexBuffer, 12, sceneInfo.vertexByteStride, indices, barycentrics);
-    float2 uvWorld = getTriangleAttribute<float2>(vertexBuffer, 24, sceneInfo.vertexByteStride, indices, barycentrics);
+    getTriangleInformation(vertexBuffer, sceneInfo.vertexByteStride, indices, barycentrics, pos, normal, uvWorld);
 
     float3 worldPos = float3(mul(float4(pos, 1.0), ObjectToWorld4x3()));
     float3 worldNormal = normalize(mul(WorldToObject4x3(), normal).xyz);
 
     //load material properties
-    float3 albedo = getAttribute<float3>(sceneInfo.materialBuffer, 0, sceneInfo.materialByteStride, materialIndex);
-    float metallic = getAttribute<float>(sceneInfo.materialBuffer, 12, sceneInfo.materialByteStride, materialIndex);
-    float roughness = getAttribute<float>(sceneInfo.materialBuffer, 16, sceneInfo.materialByteStride, materialIndex);
-
-    Light light = processLight(sceneInfo.lightBuffer, sceneInfo.lightByteStride, 0, worldPos);
+    Material material;
+    material = getMaterialProperties(sceneInfo.materialBuffer, sceneInfo.materialByteStride, materialIndex);
 
     float3 N = normalize(worldNormal);
     float3 V = -WorldRayDirection();
-    float3 L = normalize(light.direction);
 
-    float shadowFactor = testShadow(worldPos, worldNormal, light.direction, false);
+    if (dot(N, V) < 0.0)
+        N = -N;
 
-    float3 color = pbrMetallicRoughness(albedo, metallic, roughness, N, V, L);
-    //float3 color = albedo;
-
-
-    color *= light.color * light.intensity * shadowFactor;
-
-    payload.color = color;
-    //payload.color = float3(1.0, 1.0, 1.0);
+    payload.color = calculateColor(material, N, V, worldPos);
 }
 
 [shader("miss")]
 void rmissMain(inout HitPayload payload) {
     payload.color = float3(0.1, 0.1, 0.1);
+    payload.depth = MISS_DEPTH;
+}
+
+[shader("miss")]
+void rmissShadowMain(inout ShadowPayload payload) {
     payload.depth = MISS_DEPTH;
 }
