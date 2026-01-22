@@ -1,3 +1,4 @@
+#pragma once
 #include "constants.slang"
 
 enum LightType : uint8_t {

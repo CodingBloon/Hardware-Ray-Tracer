@@ -1,3 +1,5 @@
+#pragma once
+
 #ifndef INFINITE
 #define INFINITE 1e32
 #endif

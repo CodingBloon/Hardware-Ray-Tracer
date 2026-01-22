@@ -1,3 +1,4 @@
+#pragma once
 #include "material.slang"
 
 struct Triangle {
@@ -18,6 +19,7 @@ uint64_t getVertexBufferAddress(uint meshID, uint64_t instanceAddress, uint64_t 
 
 uint64_t getIndexBufferAddress(uint meshID, uint64_t instanceAddress, uint64_t byteStride) {
     uint64_t *ptr = (uint64_t *)(instanceAddress + meshID * byteStride + 8);
+    return ptr[0];
 }
 
 uint32_t getMaterialIndex(uint64_t bufferAddress, uint64_t byteStride, uint instance) {
@@ -47,9 +49,11 @@ Triangle getTriangleInformation(uint64_t bufferAddress,
     tri.pos = readVertexBuffer<float3>(bufferAddress, byteStride, 0, index, barycentrics);
     tri.normal = readVertexBuffer<float3>(bufferAddress, byteStride, 12, index, barycentrics);
     tri.uv = readVertexBuffer<float2>(bufferAddress, byteStride, 24, index, barycentrics);
+
+    return tri;
 }
 
 Material getMaterial(uint64_t materialBuf, uint64_t materialStride, uint64_t instanceBuf, uint64_t instanceStride, uint instanceID) {
-    uint32_t index = readBuffer<uint32_t>(instanceBuf + instanceStride * instanceID);
+    uint32_t index = readBuffer<uint32_t>(instanceBuf + instanceStride * instanceID + 16);
     return readBuffer<Material>(materialBuf + materialStride * index);
 }

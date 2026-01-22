@@ -1,8 +1,9 @@
+#pragma once
 #include "pbr.slang"
 #include "objects.slang"
 #include "light.slang"
 #include "constants.slang"
-#include "disney_bsdf.slang"
+#include "disney.slang"
 
 struct UniformBuffer {
     float4x4 viewInverse;
@@ -75,7 +76,8 @@ float3 calculateColor(Material mat, float3 normal, float3 view, float3 worldPos)
     for (uint i = 0; i < numLights; i++) {
         Light light = processLight(sceneInfo.lightBuffer, sceneInfo.lightByteStride, i, worldPos); // get light information
         float3 L = normalize(light.direction);
-        float3 color = pbrMetallicRoughness(mat.color, mat.metallic, mat.roughness, normal, view, L);
+        float3 color = BRDF(&mat, normal, view, L);
+        //float3 color = pbrMetallicRoughness(mat.color, mat.metallic, mat.roughness, normal, view, L);
         float shadowFactor = testShadow(worldPos, normal, light.direction, false);
         accumulatedColor += color * light.color * light.intensity * shadowFactor;
     }
@@ -108,16 +110,17 @@ void rgenMain() {
     payload.depth = 0;
 
     float3 accumulatedColor = float3(0, 0, 0);
-    while (payload.weight < uniformBuffer.depthMax && payload.weight > 0.01) {
+    /*while (payload.weight < uniformBuffer.depthMax && payload.weight > 0.01) {
         float prevWeight = payload.weight;
         TraceRay(topLevelAS, rayFlags, 0xff, 0, 0, 0, ray, payload);
         accumulatedColor += payload.color * prevWeight;
 
         ray.Origin = payload.rayOrigin;
         ray.Direction = payload.rayDirection;
-    }
+    }*/
 
-    float3 color = accumulatedColor;
+    TraceRay(topLevelAS, rayFlags, 0xff, 0, 0, 0, ray, payload);
+    float3 color = payload.color;
     outImage[int2(launchID)] = float4(color, 1.0);
 }
 
@@ -132,7 +135,6 @@ void rchitMain(inout HitPayload payload, in BuiltInTriangleIntersectionAttribute
     uint64_t indexBuffer = getIndexBufferAddress(meshID, sceneInfo.instanceBuffer, sceneInfo.instanceByteStride);
     uint64_t vertexBuffer = getVertexBufferAddress(meshID, sceneInfo.instanceBuffer, sceneInfo.instanceByteStride);
 
-    int materialIndex = getMaterialIndex(sceneInfo.instanceBuffer, sceneInfo.instanceByteStride, instanceID);
     int3 indices = getIndices(indexBuffer, triID);
 
     Triangle tri = getTriangleInformation(vertexBuffer, sceneInfo.vertexByteStride, indices, barycentrics);
@@ -150,11 +152,11 @@ void rchitMain(inout HitPayload payload, in BuiltInTriangleIntersectionAttribute
     float pdf;
     float2 random;
     float3 color = calculateColor(material, N, V, worldPos);
-    float3 rayDir = sampleHemisphere(0, pdf);
+    //float3 rayDir = nextRayDIR(&material, N, V);
 
     payload.weight *= material.metallic;
     payload.rayOrigin = worldPos + N * 0.001;
-    payload.rayDirection = rayDir;
+    //payload.rayDirection = rayDir;
     payload.color = color;
 }
 

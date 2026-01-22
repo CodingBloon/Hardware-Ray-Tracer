@@ -1,3 +1,5 @@
+#pragma once
+
 #define PI 3.1415926535897F
 #define PI_2 6.2831853071795F
 #define N_1_PI 0.3183098861837F
@@ -148,60 +150,6 @@ float3 pbrMetallicRoughness(float3 albedo, float metallic, float roughness, floa
     bsdfEvaluateSimple(data, mat);
 
     return data.bsdf_diffuse + data.bsdf_glossy;
-}
-
-SurfaceInteraction bsdfEvaluateAndSample(inout BsdfEvaluateData data, BsdfMaterial material) {
-    float3 H = normalize(data.k1 + data.k2);
-    float NdotV = clampedDot(material.N, data.k1);
-    float NdotL = clampedDot(material.N, data.k2);
-    float VdotH = clampedDot(data.k1, H);
-    float NdotH = clampedDot(material.N, H);
-}
-
-float sampleCosineHemisphere() {
-
-}
-
-SurfaceInteraction pbrSurfaceInteraction(float3 albedo, float metallic, float roughness, float N, float V, float L) {
-    SurfaceInteraction interaction;
-    BsdfEvaluateData data;
-    data.k1 = V;
-    data.k2 = L;
-    data.xi = float(0.0f);
-
-    BsdfMaterial mat;
-    mat.baseColor = albedo;
-    mat.metallic = metallic;
-    mat.roughness = float2(roughness, roughness);
-    mat.N = N;
-    orthonormalBasis(mat.N, mat.T, mat.B);
-    bsdfEvaluateSimple(data, mat);
-
-    return bsdfEvaluateAndSample(data, mat);
-}
-
-//calculates the direction of the indirect lightning ray
-float3 sampleHemisphere(uint seed, out float pdf) {
-    float uSelect = rand(seed);
-    float2 uSample = float2(rand(seed), rand(seed));
-
-    float specularProb;
-    float diffuseProb = 1.0 - specularProb;
-
-    float3 rayDir;
-
-    if (uSelect < specularProb || specularProb >= 1.0) {
-    } else {
-        rayDir = sampleCosineHemisphere();
-
-        float3 brdf;
-        float pdf;
-
-
-    }
-
-    pdf = 1.0f;
-    return float3(0, 0, 0);
 }
 
 /*

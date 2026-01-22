@@ -49,16 +49,16 @@ namespace RayTracing {
 
 	struct Material {
 		float color[3];
+		float subsurface;
 		float metallic;
-		float specular;
 		float roughness;
+		float specular = 0.5f;
 		float specularTint;
 		float anisotropic;
 		float sheen;
 		float sheenTint;
 		float clearCoat;
 		float clearCoatGloss;
-		float specularTransmission;
 	};
 
 	enum LightType : uint8_t {

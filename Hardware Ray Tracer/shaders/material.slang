@@ -2,14 +2,14 @@
 
 struct Material {
     float3 color;
+    float subsurface;
     float metallic;
-    float specualar;
     float roughness;
-    float specualarTint;
+    float specular;
+    float specularTint;
     float anisotropic;
     float sheen;
     float sheenTint;
     float clearCoat;
     float clearCoatGloss;
-    float specualarTransmission;
 };

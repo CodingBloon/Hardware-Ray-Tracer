@@ -3,7 +3,7 @@
 RayTracing::RTApp::RTApp() : window({800, 600, "Bloon RT Engine v0.1.2 | DLSS 4", false}), device(&window), scene(device) {
 	scene.loadModel("models/Plane.obj");
 
-	scene.createMaterial(glm::vec3(1.f, 1.f, 1.f));
+	scene.createMaterial(glm::vec3(1.f, 1.f, 1.f), 1.0f, 0.0f);
 	scene.createMaterial(glm::vec3(0.f, 0.f, 1.f));
 	
 	scene.createLight(glm::vec3(1.f, 0.f, 0.f), glm::vec3(0.0f, 0.0f, 1.0f), 2.0f);
