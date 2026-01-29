@@ -26,6 +26,7 @@ namespace RayTracing {
 		glm::mat4 projInverse;
 		uint32_t frame;
 		uint32_t depthMax;
+		float LIGHT_TRESHOLD = .0001f;
 	};
 
 	class Pipeline {

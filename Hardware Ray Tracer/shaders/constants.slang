@@ -23,3 +23,7 @@
 #ifndef SAMPLES
 #define SAMPLES 1
 #endif
+
+#ifndef LIGHT_TRESHOLD
+#define LIGHT_TRESHOLD 0.0001
+#endif

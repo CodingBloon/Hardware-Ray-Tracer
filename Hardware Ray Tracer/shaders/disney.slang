@@ -10,7 +10,6 @@
 
 inline float schlickFresnel(float F0, float VdotH) { return F0 + (1.0f - F0) * pow(1.0f - VdotH, 5.0f); }
 inline float schlickWeight(float f) { float m = clamp(1.0f - f, 0.0f, 1.0f); return m * m * m * m * m; } //pow(m, 5.0f)
-inline float square(float f) { return f * f; }
 
 
 float GTR1(float NdotH, float a) {
@@ -87,7 +86,7 @@ float3 evalSpecular(Material *material, float NdotH, float NdotL, float NdotV, f
     float d = GTR2_anisotropic(NdotH, H.x, H.y, anisotropicParameters);
     float fresnel = schlickWeight(dot(L, H));
     float3 f = lerp(color, float3(1.0f), fresnel);
-    float g = GGX_anisotropic(NdotL, L.x, L.y, anisotropicParameters) * GGX_anisotropic(NdotV, V.x, V.y, anisotropicParameters);
+    float g = GGX_anisotropic(L.z, L.x, L.y, anisotropicParameters) * GGX_anisotropic(V.z, V.x, V.y, anisotropicParameters);
 
     return d * f * g;
 }
@@ -104,17 +103,9 @@ float3 BRDF(Material *material, float3 N, float3 V, float3 L) {
     float NdotH = dot(N, H);
     float HdotL = dot(H, L);
 
-    /*float3 tangent;
-    float3 bitangent;
-    orthonormalBasis(N, tangent, bitangent);*/
-
     float3 localH = toLocal(H, N);
     float3 localV = toLocal(V, N);
     float3 localL = toLocal(L, N);
-
-    /*float3 localH = float3(dot(tangent, H), dot(bitangent, H), NdotH);
-    float3 localV = float3(dot(tangent, V), dot(bitangent, V), NdotV);
-    float3 localL = float3(dot(tangent, L), dot(bitangent, L), NdotL);*/
 
     float3 sheen = evalSheen(material, HdotL);
     float3 clearCoat = evalClearcoat(material, NdotH, NdotL, NdotV, HdotL);

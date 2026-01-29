@@ -4,13 +4,14 @@
 #include "light.slang"
 #include "constants.slang"
 #include "disney.slang"
-#include "sampling.slang"
+#include "sampler.slang"
 
 struct UniformBuffer {
     float4x4 viewInverse;
     float4x4 projInverse;
     uint32_t frame;
     uint32_t depthMax;
+    float LIGHT_THRESHOLD;
 };
 
 struct SceneInfo {
@@ -72,10 +73,11 @@ float3 calculateColor(Material mat, float3 normal, float3 view, float3 worldPos)
     float3 accumulatedColor = float3(0, 0, 0);
     uint numLights = (uint) sceneInfo.numLights;
     
-    /* Sample every light sources
-     * This will later be replaced with an more advanced algorithm like light bounding volume hierarchy or ReSTIR */
+    //This will later be replaced with a light bounding volume hierarchy system
     for (uint i = 0; i < numLights; i++) {
         Light light = processLight(sceneInfo.lightBuffer, sceneInfo.lightByteStride, i, worldPos); // get light information
+        if (light.intensity < LIGHT_TRESHOLD) //lights under this threshold should be ignored because they do not contribute much to the final image
+            continue;
         float3 L = normalize(light.direction);
         float3 color = BRDF(&mat, normal, view, L);
         float shadowFactor = testShadow(worldPos, normal, light.direction, false);
@@ -117,7 +119,7 @@ void rgenMain() {
         while (payload.depth < uniformBuffer.depthMax) {
             float prevWeight = payload.weight;
             TraceRay(topLevelAS, rayFlags, 0xff, 0, 0, 0, ray, payload);
-            c += payload.color;
+            c += payload.color * prevWeight;
 
             ray.Direction = payload.rayDirection;
             ray.Origin = payload.rayOrigin;
@@ -150,17 +152,20 @@ void rchitMain(inout HitPayload payload, in BuiltInTriangleIntersectionAttribute
     Material material = getMaterial(sceneInfo.materialBuffer, sceneInfo.materialByteStride, sceneInfo.instanceBuffer, sceneInfo.instanceByteStride, instanceID);
 
     float3 N = normalize(worldNormal);
-    float3 V = -WorldRayDirection();
+    float3 V = WorldRayDirection();
 
-    if (dot(N, V) < 0.0)
+    if (dot(N, -V) < 0.0)
         N = -N;
 
-    float3 color = calculateColor(material, N, V, worldPos);
-    float4 sampled = sample(&material, N, V, uniformBuffer.frame);
+    float3 color = calculateColor(material, N, -V, worldPos);
+    uint seed = uniformBuffer.frame;
+    float2 randoms = float2(rand(seed), rand(seed));
+    float pdf;
     payload.depth++;
-    payload.weight = material.metallic;
-    payload.rayDirection = reflect(V, toWorld(sampled.xyz, N));
     payload.rayOrigin = worldPos + N * 0.001;
+    // payload.rayDirection = sampleGGXVNDFSphericalCap(&material, V, N, randoms, pdf);//sample(&material, N, V, seed, pdf);
+    // payload.weight *= material.metallic * pdf;
+    payload.weight = 0.0f; //indirect illumination will be deactivated
     payload.color = color;
 }
 

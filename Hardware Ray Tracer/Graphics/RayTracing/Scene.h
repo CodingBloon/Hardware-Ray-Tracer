@@ -120,6 +120,15 @@ namespace RayTracing {
 		uint64_t skyStride;
 	};
 
+	struct LightBVHNode {
+		float bBoxMin[3];
+		float bBoxMax[3];
+		float totalFlux;
+		float coneAxis[3];
+		float coneAngle;
+		int childIndex;
+	};
+
 	class Scene {
 	public:
 		Scene(Core::Device& device);
@@ -135,6 +144,8 @@ namespace RayTracing {
 		void unloadModel(uint32_t meshId);
 		void destroyLight(uint32_t lightId);
 		void destroyMaterial(uint32_t materialId);
+
+		void prepareRendering();
 
 		inline AccelerationStructure getTlas() { return tlasAccel; }
 		inline std::unique_ptr<Core::Buffer>& getSceneInfoBuffer() { return sceneInfoBuffer; }
@@ -177,6 +188,7 @@ namespace RayTracing {
 		std::unique_ptr<Core::Buffer> instanceBuffer;
 		std::unique_ptr<Core::Buffer> skyBuffer;
 		std::unique_ptr<Core::Buffer> sceneInfoBuffer;
+		std::unique_ptr<Core::Buffer> lightAccelerationStructures;
 	};
 
 }
